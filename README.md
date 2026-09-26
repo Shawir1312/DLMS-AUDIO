@@ -1,17 +1,17 @@
 <div align="center">
 
-# 🎛️ S.NET AUDIO MANAGEMENT (MINI DLMS 2-WAY)
+# 🎛️ S.NET AUDIO MANAGEMENT (MINI DLMS 2-CHANNEL INDEPENDENT)
 ### *Professional Dual-Core ESP32-S3 Digital Loudspeaker Management System*
 
 [![ESP32-S3](https://img.shields.io/badge/Hardware-ESP32--S3%20LX7%20240MHz-red.svg?style=for-the-badge&logo=espressif)](https://www.espressif.com/)
 [![DSP](https://img.shields.io/badge/DSP%20Engine-32--bit%20FPU%20Hardware-blue.svg?style=for-the-badge)](https://github.com/Shawir1312/DLMS-AUDIO)
-[![Crossover](https://img.shields.io/badge/Crossover-2--Way%20Linkwitz--Riley%2048dB-purple.svg?style=for-the-badge)](https://github.com/Shawir1312/DLMS-AUDIO)
+[![Crossover](https://img.shields.io/badge/Channels-2--Ch%20Independent%20DSP-purple.svg?style=for-the-badge)](https://github.com/Shawir1312/DLMS-AUDIO)
 [![Display](https://img.shields.io/badge/Display-1.8%22%20SPI%20TFT%20ST7735-orange.svg?style=for-the-badge)](https://github.com/Shawir1312/DLMS-AUDIO)
-[![Interface](https://img.shields.io/badge/Control-Rotary%20Encoder%20%2B%20Web%20UI-green.svg?style=for-the-badge)](https://github.com/Shawir1312/DLMS-AUDIO)
+[![Interface](https://img.shields.io/badge/Control-Virtual%20Knob%20%2B%20EC11-green.svg?style=for-the-badge)](https://github.com/Shawir1312/DLMS-AUDIO)
 
 <p align="center">
-  <b>Sistem Manajemen Audio Digital (DLMS) 2-Way Aktif Berbasis Dual ESP32</b><br>
-  Dilengkapi Layar Depan 1.8" TFT, Rotary Encoder Real-Time, Dual DAC PCM5102, dan Web Dashboard Wi-Fi Tanpa Aplikasi.
+  <b>Sistem Manajemen Audio Digital (DLMS) Dual-Channel Independen Berbasis Dual ESP32</b><br>
+  Dilengkapi Layar Depan 1.8" TFT, Dual Modul DAC PCM5102 Stereo, Rotary Encoder Real-Time + Tombol Virtual Web Dashboard.
 </p>
 
 ---
@@ -27,12 +27,12 @@
 | Modul | Kemampuan & Spesifikasi |
 | :--- | :--- |
 | **⚡ Dual Microcontroller Architecture** | **ESP32-S** khusus audio Bluetooth receiver (Zero dropouts) + **ESP32-S3** khusus Real-Time DSP Audio, TFT Display, Rotary Encoder, & Web Server. |
-| **🔊 2-Way Active Crossover** | Linkwitz-Riley **12 dB, 24 dB, hingga 48 dB/oct**. Vokal pada subwoofer terpotong 100% tuntas dan nada sub-bass diblokir sempurna dari speaker mid/high. |
-| **🎛️ Dual DAC PCM5102 I2S** | Output stereo digital lossless terpisah: **Channel Kiri (L) = SUBWOOFER / LOW**, **Channel Kanan (R) = MID / HIGH**. |
-| **🖥️ Layar 1.8" SPI TFT (128x160)** | Tampilan mendatar (*landscape*) bergaya rackmount audio profesional dengan **3-Channel VU Meter Real-Time (25 FPS)** dan indikator `CLIP`. |
-| **🔘 Knob Rotary Encoder (EC11)** | Navigasi menu panel depan & perubahan frekuensi/gain secara instan (*real-time*). Dilengkapi mode kunci parameter dan proteksi auto-return. |
+| **🔊 Dual-Channel Independent DSP Engine** | Dua pipeline audio mandiri (**Channel 1** & **Channel 2**): Filter HPF & LPF Linkwitz-Riley **12 dB, 24 dB, hingga 48 dB/oct** (20 Hz - 20 kHz), 3-Band Parametric EQ per channel, Independent Gain, Delay Alignment, Limiter, dan Mute. Bebas difungsikan untuk Crossover 2-Way, Active Bi-Amp, ataupun Stereo Full-Range! |
+| **🎛️ Dual DAC PCM5102 (2 Modul Terpisah)** | Menggunakan 2 modul fisik PCM5102: **DAC 1 = CHANNEL 1 (Output Stereo L & R)**, **DAC 2 = CHANNEL 2 (Output Stereo L & R)**. Masing-masing modul DAC menghasilkan output audio stereo independen. |
+| **🖥️ Layar 1.8" SPI TFT (128x160)** | Tampilan mendatar (*landscape*) bergaya rackmount audio profesional dengan **3-Channel VU Meter Real-Time: IN, CH1, CH2 (25 FPS)** dan indikator `CLIP`. |
+| **🔘 Knob Rotary Encoder & Tombol Virtual** | Navigasi menu panel depan & perubahan parameter secara instan (*real-time*) lewat knob fisik EC11 **ATAU** tombol virtual di Web Dashboard tanpa menunggu knob fisik tiba. |
 | **🌐 Standalone Web Controller** | SoftAP Wi-Fi mandiri (`SNET-AUDIO` -> `192.168.4.1`) dengan Captive Portal, respon kurva EQ visual, slider logaritmik, dan 5 slot memori NVS. |
-| **🛡️ Audio Protection Suite** | Subsonic HPF (25 Hz), Tweeter Protection LPF (18 kHz), Dual Peak Limiter, Phase Invert 180°, dan Delay Alignment (0–50 ms). |
+| **🛡️ Audio Protection Suite** | Subsonic HPF, Tweeter Protection LPF, Dual Peak Limiter per channel, Phase Invert 180°, dan Delay Alignment (0–50 ms). |
 
 ---
 
@@ -59,32 +59,35 @@
   │                                                                        │
   │  [INPUT I2S_NUM_0 (RX)] : Pin 4 (BCK), Pin 5 (WS), Pin 6 (DIN)         │
   │                                                                        │
-  │  [CORE 1: DSP AUDIO PIPELINE 2-WAY REAL-TIME]                          │
-  │   ├── WAY 1 (SUBWOOFER): Subsonic HPF 25Hz -> Crossover LPF 80-120Hz   │
-  │   │                      -> Sub PEQ -> Sub Gain -> Sub Delay -> Limiter│
-  │   │                      -> Diteruskan ke Output KIRI (LEFT)           │
-  │   └── WAY 2 (MID/HIGH) : Crossover HPF 80-120Hz -> Tweeter LPF 18kHz  │
-  │                          -> Mid PEQ -> Mid Gain -> Mid Delay -> Limiter│
-  │                          -> Diteruskan ke Output KANAN (RIGHT)         │
+  │  [CORE 1: DUAL INDEPENDENT DSP AUDIO PIPELINES REAL-TIME]              │
+  │   ├── CHANNEL 1 (DAC 1): HPF 20Hz-20kHz (12/24/48dB) -> LPF (12/24/48dB)│
+  │   │                      -> 3-Band PEQ -> Gain -> Delay -> Limiter     │
+  │   │                      -> Diteruskan ke DAC 1 (Stereo Output L & R)  │
+  │   │                                                                    │
+  │   └── CHANNEL 2 (DAC 2): HPF 20Hz-20kHz (12/24/48dB) -> LPF (12/24/48dB)│
+  │                          -> 3-Band PEQ -> Gain -> Delay -> Limiter     │
+  │                          -> Diteruskan ke DAC 2 (Stereo Output L & R)  │
   │                                                                        │
   │  [CORE 0: KONTROL & TAMPILAN]                                          │
   │   ├── Web Server SoftAP ("SNET-AUDIO" -> http://192.168.4.1)           │
-  │   ├── Layar 1.8" SPI TFT 128x160 (ST7735: VU Meter 3-Ch & Info DSP)    │
-  │   └── Rotary Encoder (EC11: Navigasi Menu & Live Setting Parameter)    │
+  │   ├── Layar 1.8" SPI TFT 128x160 (ST7735: VU Meter 3-Ch: IN, CH1, CH2)│
+  │   ├── Tombol Virtual Rotary Controller (Web Live Dashboard)            │
+  │   └── Rotary Encoder EC11 Fisik (CLK, DT, SW)                          │
   │                                                                        │
   │  [OUTPUT I2S_NUM_1 (TX)]: Pin 15 (BCK), Pin 16 (WS), Pin 17 (DIN)      │
   └───────────────────┬───────────────────────────────┬────────────────────┘
                       │                               │
                       ▼                               ▼
        ┌──────────────────────────────┐ ┌──────────────────────────────┐
-       │   DAC 1 (PCM5102) - SUB      │ │  DAC 2 (PCM5102) - MID/HIGH  │
-       │   Ambil Output KIRI (L)      │ │  Ambil Output KANAN (R)      │
+       │     MODUL DAC 1 (PCM5102)    │ │     MODUL DAC 2 (PCM5102)    │
+       │          CHANNEL 1           │ │          CHANNEL 2           │
+       │   Output Stereo Jack L & R   │ │   Output Stereo Jack L & R   │
        └──────────────┬───────────────┘ └──────────────┬───────────────┘
                       │                                │
                       ▼                                ▼
        ┌──────────────────────────────┐ ┌──────────────────────────────┐
-       │     Power Amplifier SUB      │ │    Power Amplifier MID/HI    │
-       │     (Khusus Subwoofer)       │ │     (Speaker Mid & Horn)     │
+       │    Power Amplifier CH 1      │ │    Power Amplifier CH 2      │
+       │  (Bebas: Sub / Low / Full)   │ │  (Bebas: Mid / High / Full)  │
        └──────────────────────────────┘ └──────────────────────────────┘
 ```
 
@@ -124,10 +127,10 @@ Sesuai modul pada foto (Header 8 pin di bagian bawah):
 
 ---
 
-### 3. Dual DAC PCM5102 ke ESP32-S3 (2 Independent Channels)
-Kedua modul DAC PCM5102 dihubungkan secara **paralel** ke jalur I2S TX yang sama:
+### 3. Dual DAC PCM5102 ke ESP32-S3 (2 Modul DAC Fisik Terpisah)
+Sistem menggunakan **2 modul fisik PCM5102 terpisah**, di mana setiap modul menghasilkan sinyal audio dengan DSP mandiri:
 
-| Pin ESP32-S3 | Sambung Ke DAC 1 & DAC 2 | Fungsi |
+| Pin ESP32-S3 | Sambung Ke Modul DAC 1 & DAC 2 | Fungsi |
 | :--- | :--- | :--- |
 | **GPIO 15** | **BCK** (DAC 1 & DAC 2) | I2S Bit Clock Out |
 | **GPIO 16** | **LCK / LRCK** (DAC 1 & DAC 2) | I2S Word Select Out |
@@ -135,10 +138,10 @@ Kedua modul DAC PCM5102 dihubungkan secara **paralel** ke jalur I2S TX yang sama
 | **GND** | **GND** | Ground bersama |
 | **5V** atau **3.3V** | **VCC** | Power Supply DAC |
 
-> **Output Audio Bebas & Fleksibel (Bukan Terkunci Sub / Mid):**
-> * **DAC 1 (Channel 1 / Left):** Memiliki DSP mandiri (HPF 20Hz-20kHz 12/24/48dB, LPF 20Hz-20kHz 12/24/48dB, 3-Band PEQ, Gain, Phase, Mute, Delay, Limiter). Bisa diatur bebas: **Subwoofer**, **Mid-Low**, **Fullrange**, atau apapun!
-> * **DAC 2 (Channel 2 / Right):** Memiliki DSP mandiri (HPF 20Hz-20kHz 12/24/48dB, LPF 20Hz-20kHz 12/24/48dB, 3-Band PEQ, Gain, Phase, Mute, Delay, Limiter). Bisa diatur bebas: **Mid/High**, **Tweeter/High**, **Fullrange**, atau apapun!
-> * Ambil output audio: Socket L pada DAC 1 untuk Channel 1, dan Socket R pada DAC 2 untuk Channel 2. (Atau jika memakai 1 board DAC PCM5102 stereo, Socket L = CH1, Socket R = CH2).
+> **Topologi 2 Modul DAC (Setiap Modul Memiliki Output Stereo R & L Sendiri):**
+> * **MODUL DAC 1 = CHANNEL 1:** Memiliki pipeline DSP mandiri (HPF 20Hz-20kHz 12/24/48dB, LPF 20Hz-20kHz 12/24/48dB, 3-Band Parametric EQ, Gain, Delay, Phase Invert, Limiter). Kedua output jack (R & L) pada Modul DAC 1 mengeluarkan sinyal Channel 1. Karakter suara bebas diatur: **Subwoofer**, **Low-Mid**, **Vokal**, atau **Stereo Full-Range**!
+> * **MODUL DAC 2 = CHANNEL 2:** Memiliki pipeline DSP mandiri (HPF 20Hz-20kHz 12/24/48dB, LPF 20Hz-20kHz 12/24/48dB, 3-Band Parametric EQ, Gain, Delay, Phase Invert, Limiter). Kedua output jack (R & L) pada Modul DAC 2 mengeluarkan sinyal Channel 2. Karakter suara bebas diatur: **Mid/High**, **Tweeter**, **Low**, atau **Stereo Full-Range**!
+> * **Bebas Tanpa Keterikatan Nama:** Anda bebas mengatur Channel 1 dan Channel 2 sesuai kebutuhan audio lapangan, tanpa dipaksa bahwa satu harus Sub dan satu harus Mid/High.
 
 > **Konfigurasi Jumper Solder PCB PCM5102:**
 > * `SCK` ──► `GND` *(Wajib! Mengaktifkan Internal PLL generator)*
@@ -161,14 +164,14 @@ Kedua modul DAC PCM5102 dihubungkan secara **paralel** ke jalur I2S TX yang sama
 
 ```text
  ┌─────────────────────────────────────────────────────────┐
- │ S.NET MINI DLMS 2-WAY                                   │
+ │ S.NET MINI DLMS 2-CHANNEL INDEPENDENT                   │
  ├─────────────────────────────────────────────────────────┤
  │ IN  [████████████░░░░░░░░░░░░░░░░░░] -14dB              │
- │ SUB [██████████████████░░░░░░░░░░░░] -6dB               │
- │ MID [████████████░░░░░░░░░░░░░░░░░░] -12dB              │
+ │ CH1 [██████████████████░░░░░░░░░░░░] -6dB               │
+ │ CH2 [████████████░░░░░░░░░░░░░░░░░░] -12dB              │
  ├─────────────────────────────────────────────────────────┤
- │ X-OVER: 100Hz (24dB LR) | CH1:+0.0dB | CH2:+0.0dB       │
- │ PRESET: Slot 1 [ACTIVE] | IP: 192.168.4.1               │
+ │ CH1: HPF 80Hz | CH2: HPF 1.2kHz | PRESET: Slot 1        │
+ │ IP: 192.168.4.1                 | VOL: 0.0dB            │
  ├─────────────────────────────────────────────────────────┤
  │ [ TEKAN KNOB : MENU ]                                   │
  └─────────────────────────────────────────────────────────┘
