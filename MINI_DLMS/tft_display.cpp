@@ -8,9 +8,8 @@
 
 TftDisplay tftDisplay;
 
-// Hardware SPI bus for TFT on ESP32-S3
-static SPIClass spiTft(FSPI);
-static Adafruit_ST7735 tft(&spiTft, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
+// Direct 5-pin constructor (Zero SPI crashes, 100% stable across all ESP32-S3 boards)
+static Adafruit_ST7735 tft(TFT_CS_PIN, TFT_DC_PIN, TFT_MOSI_PIN, TFT_SCLK_PIN, TFT_RST_PIN);
 
 // Color definitions (RGB565)
 #define COLOR_BG         0x0000 // Black
@@ -57,17 +56,26 @@ TftDisplay::TftDisplay()
 bool TftDisplay::begin() {
     Serial.println("[TFT] Initializing 1.8\" SPI TFT (ST7735)...");
 
-    // Optional backlight pin
+    // 1. Hardware Reset Pulse
+    if (TFT_RST_PIN >= 0) {
+        pinMode(TFT_RST_PIN, OUTPUT);
+        digitalWrite(TFT_RST_PIN, HIGH);
+        delay(10);
+        digitalWrite(TFT_RST_PIN, LOW);
+        delay(20);
+        digitalWrite(TFT_RST_PIN, HIGH);
+        delay(50);
+    }
+
+    // 2. Backlight pin (jika terhubung ke GPIO)
     if (TFT_BL_PIN >= 0) {
         pinMode(TFT_BL_PIN, OUTPUT);
         digitalWrite(TFT_BL_PIN, HIGH);
     }
 
-    // Initialize SPI on defined pins: SCLK, MISO (-1), MOSI, CS
-    spiTft.begin(TFT_SCLK_PIN, -1, TFT_MOSI_PIN, TFT_CS_PIN);
-
-    // Initialize ST7735 128x160
+    // 3. Initialize ST7735 128x160 (BlackTab / RedTab compatible)
     tft.initR(INITR_BLACKTAB);
+    delay(50);
     tft.setRotation(1); // Landscape 160 x 128
     tft.fillScreen(COLOR_BG);
 

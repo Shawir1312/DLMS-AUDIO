@@ -24,12 +24,21 @@
 #define I2S_RX_DATA_PIN       6    // DATA IN <- Pin 22 ESP32-S / PCM1808 DOUT
 
 // 3. Hardware Pins: 1.8" SPI TFT LCD Module 128x160 (Driver ST7735)
-#define TFT_CS_PIN            10   // CS / Chip Select
-#define TFT_DC_PIN            9    // DC / A0 / Command-Data
-#define TFT_RST_PIN           14   // RESET / RES
-#define TFT_MOSI_PIN          11   // SDA / MOSI
-#define TFT_SCLK_PIN          12   // SCK / SCL
-#define TFT_BL_PIN            13   // Backlight LED (Opsional, atau sambung ke 3.3V)
+// Sesuai modul 8-pin di bagian bawah:
+// Pin 1 (RST) -> GPIO 14
+// Pin 2 (CS)  -> GPIO 10
+// Pin 3 (D/C) -> GPIO 9
+// Pin 4 (DIN) -> GPIO 11
+// Pin 5 (CLK) -> GPIO 12
+// Pin 6 (VCC) -> Wajib colok ke Pin 5V ESP32 (karena J1 open / ada regulator U21)
+// Pin 7 (BL)  -> Wajib colok ke Pin 3.3V ESP32 agar lampu latar selalu hidup stabil
+// Pin 8 (GND) -> GND
+#define TFT_CS_PIN            10   // Pin 2 - CS
+#define TFT_DC_PIN            9    // Pin 3 - D/C (Command/Data)
+#define TFT_RST_PIN           14   // Pin 1 - RST
+#define TFT_MOSI_PIN          11   // Pin 4 - DIN (SDA/MOSI)
+#define TFT_SCLK_PIN          12   // Pin 5 - CLK (SCK/SCL)
+#define TFT_BL_PIN            -1   // Pin 7 - BL (Sambung langsung ke 3.3V)
 
 // 4. Hardware Pins: Rotary Encoder (EC11 dengan Push Button)
 #define ENCODER_CLK_PIN       1    // Pin CLK / A
