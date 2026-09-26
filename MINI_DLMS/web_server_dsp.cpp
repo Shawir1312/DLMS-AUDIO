@@ -8,6 +8,7 @@
 #include "dsp_engine.h"
 #include "bt_audio.h"
 #include "presets_manager.h"
+#include "tft_display.h"
 
 WebServerDsp webServerDsp;
 static WebServer server(WEB_SERVER_PORT);
@@ -455,6 +456,37 @@ void WebServerDsp::setupRoutes() {
         server.send(200, "application/json", "{\"status\":\"rebooting\"}");
         delay(500);
         ESP.restart();
+    });
+
+    // 12. POST Virtual Rotary Encoder Control
+    server.on("/api/encoder", HTTP_POST, []() {
+        if (!server.hasArg("plain")) {
+            server.send(400, "application/json", "{\"error\":\"Missing body\"}");
+            return;
+        }
+        JsonDocument doc;
+        if (deserializeJson(doc, server.arg("plain"))) {
+            server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+            return;
+        }
+        const char* act = doc["action"] | "";
+        int delta = doc["delta"] | 0;
+        if (strcmp(act, "left") == 0) {
+            tftDisplay.handleEncoder(-1, false, false);
+        } else if (strcmp(act, "right") == 0) {
+            tftDisplay.handleEncoder(1, false, false);
+        } else if (strcmp(act, "fast_left") == 0) {
+            tftDisplay.handleEncoder(-5, false, false);
+        } else if (strcmp(act, "fast_right") == 0) {
+            tftDisplay.handleEncoder(5, false, false);
+        } else if (strcmp(act, "click") == 0) {
+            tftDisplay.handleEncoder(0, true, false);
+        } else if (strcmp(act, "long") == 0) {
+            tftDisplay.handleEncoder(0, false, true);
+        } else if (delta != 0) {
+            tftDisplay.handleEncoder(delta, false, false);
+        }
+        server.send(200, "application/json", "{\"status\":\"ok\"}");
     });
 
     // Captive portal probes for Android, iOS, Windows

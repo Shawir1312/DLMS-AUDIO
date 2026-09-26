@@ -122,6 +122,194 @@ canvas#eqCanvas { width: 100%; height: 100%; display: block; }
 .preset-btn.active { background: rgba(56,189,248,0.15); border-color: var(--primary); color: var(--primary); }
 
 .quick-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+
+/* Virtual Rotary Controller Styles */
+.rotary-card {
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+  border: 2px solid #6366f1;
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 24px rgba(79, 70, 229, 0.2);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.rotary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rotary-badge {
+  font-size: 11px;
+  background: #4f46e5;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rotary-status {
+  font-size: 11px;
+  font-family: monospace;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #38bdf8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.rotary-grid-main {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1fr;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+@media (max-width: 600px) {
+  .rotary-grid-main {
+    grid-template-columns: 1fr 1.1fr 1fr;
+    gap: 8px;
+  }
+}
+.rotary-btn {
+  border-radius: 8px;
+  padding: 14px 6px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.1s, box-shadow 0.15s, background-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.rotary-btn:active {
+  transform: scale(0.94);
+}
+.rotary-btn-turn {
+  background: #1e293b;
+  border: 2px solid #38bdf8;
+  color: #38bdf8;
+}
+.rotary-btn-turn:hover {
+  background: #0284c7;
+  color: #ffffff;
+}
+.rotary-btn-click {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  border: 2px solid #a5b4fc;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.45);
+}
+.rotary-btn-click:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+  box-shadow: 0 0 22px rgba(99, 102, 241, 0.7);
+}
+.rotary-btn-home {
+  background: transparent;
+  border: 1.5px solid #f59e0b;
+  color: #f59e0b;
+  border-radius: 6px;
+  padding: 10px 8px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: center;
+}
+.rotary-btn-home:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+.rotary-btn-home:active {
+  transform: scale(0.96);
+}
+.rotary-grid-sub {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+@media (max-width: 600px) {
+  .rotary-grid-sub {
+    grid-template-columns: 1fr 1.6fr 1fr;
+    gap: 6px;
+  }
+}
+.rotary-btn-step {
+  background: #0f172a;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  padding: 10px 4px;
+  font-size: 11px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: center;
+}
+.rotary-btn-step:hover {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+.rotary-btn-step:active {
+  transform: scale(0.95);
+}
+
+/* Floating Bottom Bar for Mobile/Laptop scrolling */
+.floating-encoder-bar {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid #6366f1;
+  border-radius: 30px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.fl-btn {
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #38bdf8;
+  border-radius: 20px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all 0.1s;
+}
+.fl-btn:active {
+  transform: scale(0.92);
+  background: #38bdf8;
+  color: #0f172a;
+}
+.fl-btn-center {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+  border-color: #818cf8;
+}
+.fl-btn-center:active {
+  background: #818cf8;
+}
+.fl-btn-home {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.5);
+}
 </style>
 </head>
 <body>
@@ -146,7 +334,61 @@ canvas#eqCanvas { width: 100%; height: 100%; display: block; }
     <span style="font-size:12px;font-weight:700;color:var(--text-muted);display:flex;align-items:center;">Arsitektur Cepat:</span>
     <button class="btn btn-outline" style="border-color:#38bdf8;color:#38bdf8;" onclick="setMode2WayCrossover()">Mode 2-Way Crossover (CH1 Sub / CH2 Mid-High)</button>
     <button class="btn btn-outline" style="border-color:#10b981;color:#10b981;" onclick="setModeStereoFull()">Mode Stereo Full-Range (CH1 Flat / CH2 Flat)</button>
-    <button class="btn btn-outline" style="border-color:#f59e0b;color:#f59e0b;" onclick="setModeActive2Way()">Mode Mid-Low & Tweeter (CH1 Low / CH2 High)</button>
+  </div>
+
+  <!-- VIRTUAL ROTARY CONTROLLER (Pengganti Knob Fisik EC11) -->
+  <div class="rotary-card">
+    <div class="rotary-card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;font-weight:800;color:#c7d2fe;">🎮 KONTROL VIRTUAL ROTARY ENCODER</span>
+        <span class="rotary-badge">LIVE LCD TFT 1.8"</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:#94a3b8;">Status Layar:</span>
+        <span id="encStatus" class="rotary-status">Siap Digunakan</span>
+      </div>
+    </div>
+
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;line-height:1.4;">
+      Gunakan tombol virtual di bawah ini untuk mengoperasikan menu & setting pada <strong>Layar LCD 1.8"</strong> secara real-time. Anda bisa mengubah frekuensi, gain, crossover, simpan preset ke NVS, tanpa menunggu modul rotary encoder fisik tiba!
+    </p>
+
+    <!-- Baris Utama: Putar Kiri, Klik Knob, Putar Kanan -->
+    <div class="rotary-grid-main">
+      <button class="rotary-btn rotary-btn-turn" onclick="sendEncoder('left')">
+        <span style="font-size:15px;letter-spacing:0.5px;">⟲ PUTAR KIRI</span>
+        <span style="font-size:11px;opacity:0.85;font-weight:500;margin-top:2px;">(Prev / Nilai -1)</span>
+      </button>
+
+      <button class="rotary-btn rotary-btn-click" onclick="sendEncoder('click')">
+        <span style="font-size:15px;letter-spacing:0.5px;">🔘 TEKAN KNOB</span>
+        <span style="font-size:11px;opacity:0.95;font-weight:600;margin-top:2px;">[ MENU / EDIT / OK ]</span>
+      </button>
+
+      <button class="rotary-btn rotary-btn-turn" onclick="sendEncoder('right')">
+        <span style="font-size:15px;letter-spacing:0.5px;">⟳ PUTAR KANAN</span>
+        <span style="font-size:11px;opacity:0.85;font-weight:500;margin-top:2px;">(Next / Nilai +1)</span>
+      </button>
+    </div>
+
+    <!-- Baris Cepat: -5 Cepat, Home Long Press, +5 Cepat -->
+    <div class="rotary-grid-sub">
+      <button class="rotary-btn-step" onclick="sendEncoder('fast_left')">
+        ⏪ Langkah Cepat -5
+      </button>
+      <button class="rotary-btn-home" onclick="sendEncoder('long')">
+        ↩ TEKAN LAMA (KEMBALI KE VU METER HOME)
+      </button>
+      <button class="rotary-btn-step" onclick="sendEncoder('fast_right')">
+        ⏩ Langkah Cepat +5
+      </button>
+    </div>
+
+    <!-- Petunjuk Tombol Fisik & Keyboard -->
+    <div style="font-size:11px;color:#94a3b8;background:#090d16;padding:6px 10px;border-radius:6px;border:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+      <span>💡 <strong>Keyboard Laptop / PC:</strong> ⬅ Panah Kiri (Kiri), ➡ Panah Kanan (Kanan), [Enter] (Tekan Knob), [Esc] (Kembali ke VU Meter)</span>
+      <span style="color:#a5b4fc;">(Tahan Shift + Panah untuk lompat 5 langkah)</span>
+    </div>
   </div>
 
   <div class="grid-top">
@@ -973,6 +1215,65 @@ function drawGraph() {
   ctx.stroke();
 }
 
+// ============================================================================
+// Virtual Rotary Controller API & Event Handling
+// ============================================================================
+async function sendEncoder(action, delta = 0) {
+  if (navigator.vibrate) {
+    try { navigator.vibrate(25); } catch(e) {}
+  }
+
+  const st = document.getElementById('encStatus');
+  const flSt = document.getElementById('flEncStatus');
+  let label = action;
+  if (action === 'left') label = '⟲ Kiri (-1)';
+  else if (action === 'right') label = '⟳ Kanan (+1)';
+  else if (action === 'fast_left') label = '⏪ Mundur (-5)';
+  else if (action === 'fast_right') label = '⏩ Maju (+5)';
+  else if (action === 'click') label = '🔘 Klik OK';
+  else if (action === 'long') label = '↩ Kembali Home';
+
+  if (st) st.innerHTML = `<span style="color:#38bdf8;">Mengirim: ${label}...</span>`;
+  if (flSt) flSt.innerText = label;
+
+  try {
+    const res = await fetch('/api/encoder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action, delta: delta })
+    });
+    if (res.ok) {
+      if (st) st.innerHTML = `<span style="color:#10b981;">✓ ${label} OK</span>`;
+      setTimeout(() => {
+        if (st && st.innerText.includes('OK')) {
+          st.innerText = 'Siap Digunakan';
+        }
+      }, 1200);
+    }
+  } catch(e) {
+    console.warn("Virtual encoder request failed:", e);
+    if (st) st.innerHTML = `<span style="color:#ef4444;">Gagal Terhubung</span>`;
+  }
+}
+
+// Global Keyboard Navigation for Virtual Rotary Knob
+window.addEventListener('keydown', (e) => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    sendEncoder(e.shiftKey ? 'fast_left' : 'left');
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    sendEncoder(e.shiftKey ? 'fast_right' : 'right');
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    sendEncoder('click');
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    e.preventDefault();
+    sendEncoder('long');
+  }
+});
+
 window.addEventListener('resize', drawGraph);
 window.addEventListener('DOMContentLoaded', () => {
   initPeqUi();
@@ -981,6 +1282,15 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(drawGraph, 200);
 });
 </script>
+
+<!-- Floating Mini Controller Bar untuk kemudahan navigasi saat scrolling di HP/Laptop -->
+<div id="floatingEncoderBar" class="floating-encoder-bar">
+  <button class="fl-btn" onclick="sendEncoder('left')" title="Putar Kiri / Prev">⟲ Kiri</button>
+  <button class="fl-btn fl-btn-center" onclick="sendEncoder('click')" title="Tekan Knob / Enter">🔘 OK</button>
+  <button class="fl-btn" onclick="sendEncoder('right')" title="Putar Kanan / Next">⟳ Kanan</button>
+  <button class="fl-btn fl-btn-home" onclick="sendEncoder('long')" title="Tekan Lama / Home">↩ Home</button>
+  <span id="flEncStatus" style="font-size:10px;color:#a5b4fc;font-family:monospace;padding:0 2px;">TFT LCD</span>
+</div>
 
 </body>
 </html>

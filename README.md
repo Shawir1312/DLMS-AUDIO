@@ -167,29 +167,62 @@ Kedua modul DAC PCM5102 dihubungkan secara **paralel** ke jalur I2S TX yang sama
  │ SUB [██████████████████░░░░░░░░░░░░] -6dB               │
  │ MID [████████████░░░░░░░░░░░░░░░░░░] -12dB              │
  ├─────────────────────────────────────────────────────────┤
- │ X-OVER: 100Hz (24dB LR) | SUB:+0.0dB | MID:+0.0dB       │
+ │ X-OVER: 100Hz (24dB LR) | CH1:+0.0dB | CH2:+0.0dB       │
  │ PRESET: Slot 1 [ACTIVE] | IP: 192.168.4.1               │
  ├─────────────────────────────────────────────────────────┤
  │ [ TEKAN KNOB : MENU ]                                   │
  └─────────────────────────────────────────────────────────┘
 ```
 
+### A. Kontrol Tombol Virtual di Web Dashboard (Tanpa Menunggu Knob Fisik Datang!)
+Jika modul rotary encoder EC11 fisik Anda belum tiba atau sedang dalam pengiriman, sistem telah dilengkapi **Panel Kontrol Virtual Rotary Encoder** langsung di Web Dashboard (`http://192.168.4.1`):
+
+```text
+ ┌──────────────────────────────────────────────────────────────────┐
+ │ 🎮 KONTROL VIRTUAL ROTARY ENCODER              [LIVE LCD TFT]    │
+ ├──────────────────────────────────────────────────────────────────┤
+ │ [ ⟲ PUTAR KIRI ]     [ 🔘 TEKAN KNOB ]     [ ⟳ PUTAR KANAN ]    │
+ │  (Prev / Nilai -1)    [ MENU / EDIT / OK ]   (Next / Nilai +1)   │
+ ├──────────────────────────────────────────────────────────────────┤
+ │ [ ⏪ Cepat -5 ]   [ ↩ TEKAN LAMA (HOME) ]   [ ⏩ Cepat +5 ]     │
+ └──────────────────────────────────────────────────────────────────┘
+```
+
+* **⟲ PUTAR KIRI (`left`):** Menggeser kursor menu ke atas / mengurangi nilai parameter aktif (-1).
+* **🔘 TEKAN KNOB (`click`):** Membuka Menu Pengaturan, masuk ke mode edit nilai parameter, atau mengunci pilihan.
+* **⟳ PUTAR KANAN (`right`):** Menggeser kursor menu ke bawah / menambah nilai parameter aktif (+1).
+* **⏪ / ⏩ LANGKAH CEPAT (-5 / +5):** Mengubah frekuensi atau gain secara cepat tanpa perlu banyak klik.
+* **↩ TEKAN LAMA (`long`):** Kembali seketika ke Layar Utama VU Meter.
+* **🕹️ Floating Mini Remote Bar:** Tombol mengambang di pojok kanan bawah layar HP yang tetap dapat ditekan meskipun Anda sedang menggeser ke bawah layar untuk tuning EQ atau Crossover.
+* **⌨️ Shortcut Keyboard Laptop/PC:**
+  * **⬅ Panah Kiri:** Putar Kiri *(Tahan Shift untuk -5)*
+  * **➡ Panah Kanan:** Putar Kanan *(Tahan Shift untuk +5)*
+  * **[Enter]:** Tekan Knob / OK
+  * **[Esc] / [Backspace]:** Tekan Lama (Kembali ke VU Meter)
+
+---
+
+### B. Kontrol Knob Rotary Encoder Fisik (EC11)
 1. **Layar Utama (Home Monitoring)**:
    * Menampilkan VU meter 3-channel responsif 25 FPS dengan indikator `CLIP`.
    * Menampilkan parameter crossover aktif, gain level, IP address, dan status preset.
 2. **Masuk ke Menu Pengaturan**:
    * **Tekan tombol encoder 1x** saat di layar utama untuk masuk ke Menu Pengaturan.
    * **Putar knob** untuk navigasi menu:
-     * `X-OVER FREQ` : 40 Hz – 5000 Hz
-     * `SLOPE` : 12 dB, 24 dB, 48 dB Linkwitz-Riley
-     * `SUB GAIN` : -30 dB s/d +12 dB
-     * `MID GAIN` : -30 dB s/d +12 dB
+     * `CH1 GAIN` : -30 dB s/d +12 dB
+     * `CH2 GAIN` : -30 dB s/d +12 dB
+     * `CH1 HPF` : 20 Hz – 20.000 Hz
+     * `CH1 LPF` : 20 Hz – 20.000 Hz
+     * `CH2 HPF` : 20 Hz – 20.000 Hz
+     * `CH2 LPF` : 20 Hz – 20.000 Hz
+     * `CH1 PHASE` : Normal / Invert 180°
+     * `CH2 PHASE` : Normal / Invert 180°
+     * `CH1 MUTE` : Mute / Unmute
+     * `CH2 MUTE` : Mute / Unmute
      * `MASTER VOL`: -60 dB s/d +12 dB
-     * `SUB PHASE` : Normal / Invert 180°
-     * `MID PHASE` : Normal / Invert 180°
-     * `MUTE` : Unmuted / Muted
+     * `ALL MUTE` : Mute Semua Suara
      * `LOAD PRESET`: Slot 1 – 5
-     * `SAVE PRESET`: Simpan konfigurasi ke memori NVS
+     * `SAVE TO NVS`: Simpan konfigurasi ke memori flash NVS
      * `< KEMBALI KE VU METER >`
 3. **Mengubah Nilai Parameter**:
    * **Tekan knob 1x** pada menu yang dipilih -> kursor berubah menjadi tanda bintang `*` (Mode Edit Aktif).
