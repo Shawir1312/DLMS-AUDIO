@@ -8,21 +8,21 @@
 
 TftDisplay tftDisplay;
 
-// Direct 5-pin constructor (Zero SPI crashes, 100% stable across all ESP32-S3 boards)
+// Direct 5-pin constructor: Zero SPI bus conflicts, 100% crash-free
 static Adafruit_ST7735 tft(TFT_CS_PIN, TFT_DC_PIN, TFT_MOSI_PIN, TFT_SCLK_PIN, TFT_RST_PIN);
 
-// Color definitions (RGB565)
+// Bright, high-contrast Color definitions (RGB565)
 #define COLOR_BG         0x0000 // Black
-#define COLOR_HEADER_BG  0x08A5 // Deep Navy / Slate
-#define COLOR_TEXT_DIM   0x7BEF // Light Grey
-#define COLOR_TEXT_BRT   0xFFFF // White
-#define COLOR_ACCENT     0x07FF // Cyan
+#define COLOR_HEADER_BG  0x0014 // Deep Blue Header
+#define COLOR_TEXT_DIM   0xA514 // Silver / Light Grey
+#define COLOR_TEXT_BRT   0xFFFF // Crisp White
+#define COLOR_ACCENT     0x07FF // Bright Cyan
 #define COLOR_GREEN      0x07E0 // Bright Green
 #define COLOR_YELLOW     0xFFE0 // Bright Yellow
 #define COLOR_ORANGE     0xFD20 // Orange
 #define COLOR_RED        0xF800 // Bright Red
-#define COLOR_BOX_BORDER 0x2124 // Dark Border
-#define COLOR_SEL_BG     0x02CD // Teal Selection
+#define COLOR_BOX_BORDER 0x39E7 // Crisp Slate Grey
+#define COLOR_SEL_BG     0x0419 // Vibrant Teal
 
 static const float FREQ_STEPS[] = {
     40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 90.0f, 100.0f, 110.0f, 120.0f, 
@@ -54,36 +54,68 @@ TftDisplay::TftDisplay()
 }
 
 bool TftDisplay::begin() {
-    Serial.println("[TFT] Initializing 1.8\" SPI TFT (ST7735)...");
+    Serial.println("[TFT] Memulai Inisialisasi Layar 1.8\" ST7735...");
 
-    // 1. Hardware Reset Pulse
-    if (TFT_RST_PIN >= 0) {
-        pinMode(TFT_RST_PIN, OUTPUT);
-        digitalWrite(TFT_RST_PIN, HIGH);
-        delay(10);
-        digitalWrite(TFT_RST_PIN, LOW);
-        delay(20);
-        digitalWrite(TFT_RST_PIN, HIGH);
-        delay(50);
-    }
-
-    // 2. Backlight pin (jika terhubung ke GPIO)
-    if (TFT_BL_PIN >= 0) {
+    // 1. Pastikan Backlight menyala (baik dicolok ke 3.3V maupun Pin 13)
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
+    if (TFT_BL_PIN >= 0 && TFT_BL_PIN != 13) {
         pinMode(TFT_BL_PIN, OUTPUT);
         digitalWrite(TFT_BL_PIN, HIGH);
     }
 
-    // 3. Initialize ST7735 128x160 (BlackTab / RedTab compatible)
+    // 2. Hardware Reset Pulse pada Pin 14
+    if (TFT_RST_PIN >= 0) {
+        pinMode(TFT_RST_PIN, OUTPUT);
+        digitalWrite(TFT_RST_PIN, HIGH);
+        delay(20);
+        digitalWrite(TFT_RST_PIN, LOW);
+        delay(50);
+        digitalWrite(TFT_RST_PIN, HIGH);
+        delay(100);
+    }
+
+    // 3. Inisialisasi ST7735 controller
     tft.initR(INITR_BLACKTAB);
     delay(50);
     tft.setRotation(1); // Landscape 160 x 128
-    tft.fillScreen(COLOR_BG);
 
+    // 4. TEST VISUAL: Tampilkan Layar Biru Terang agar pasti terlihat menyala!
+    tft.fillScreen(ST77XX_BLUE);
+    tft.drawRect(2, 2, 156, 124, ST77XX_YELLOW);
+    tft.drawRect(4, 4, 152, 120, ST77XX_YELLOW);
+
+    tft.setTextSize(2);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(20, 22);
+    tft.print("S.NET DLMS");
+
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setCursor(22, 50);
+    tft.print("2-WAY ACTIVE CROSSOVER");
+
+    tft.setTextColor(ST77XX_GREEN);
+    tft.setCursor(34, 74);
+    tft.print("[ SYSTEM READY ]");
+
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(22, 98);
+    tft.printf("IP: %s", webServerDsp.getIpAddress().c_str());
+
+    Serial.println("[TFT] Splash Screen Ditampilkan. Menunggu 1.2 detik...");
+    delay(1200);
+
+    // 5. Masuk ke Layar Utama VU Meter
     _isInitialized = true;
     _lastUserActivityTime = millis();
+    _prevInBarW = 0;
+    _prevSubBarW = 0;
+    _prevMidBarW = 0;
 
+    tft.fillScreen(COLOR_BG);
     drawHomeScreenLayout();
-    Serial.println("[TFT] Display initialized successfully (Landscape 160x128)");
+    Serial.println("[TFT] Layar Siap & Berjalan 100%!");
     return true;
 }
 
@@ -96,9 +128,9 @@ void TftDisplay::setScreenMode(DisplayScreenMode mode) {
     tft.fillScreen(COLOR_BG);
 
     if (_currentMode == SCREEN_HOME) {
-        _prevInBarW = -1;
-        _prevSubBarW = -1;
-        _prevMidBarW = -1;
+        _prevInBarW = 0;
+        _prevSubBarW = 0;
+        _prevMidBarW = 0;
         _prevXover = -1.0f;
         _prevSubGain = -999.0f;
         _prevMidGain = -999.0f;
@@ -140,7 +172,7 @@ void TftDisplay::drawHomeScreenLayout() {
     tft.drawRect(26, 41, 86, 9, COLOR_BOX_BORDER);
 
     // VU dB scale ticks under the bars
-    tft.setTextColor(0x52AA);
+    tft.setTextColor(COLOR_TEXT_DIM);
     tft.setCursor(26, 52);
     tft.print("-30  -18  -12  -6   0 dB");
 
@@ -156,7 +188,6 @@ void TftDisplay::drawHomeScreenLayout() {
 }
 
 void TftDisplay::drawVuBar(int16_t x, int16_t y, int16_t w, int16_t h, float db, int16_t& prev_w) {
-    // Map -40 dB ... 0 dB to 0 ... w pixels
     if (db < -40.0f) db = -40.0f;
     if (db > 0.0f)   db = 0.0f;
 
@@ -165,6 +196,7 @@ void TftDisplay::drawVuBar(int16_t x, int16_t y, int16_t w, int16_t h, float db,
     if (bar_w < 0) bar_w = 0;
     if (bar_w > w) bar_w = w;
 
+    if (prev_w < 0) prev_w = 0;
     if (bar_w == prev_w) return;
 
     if (bar_w > prev_w) {
@@ -257,7 +289,6 @@ void TftDisplay::updateHomeDynamicData() {
 void TftDisplay::drawMenuScreen() {
     drawHeader("DSP PARAMETER SETTINGS", COLOR_HEADER_BG, COLOR_YELLOW);
 
-    // Visible menu rows: 6 items (Y: 18, 33, 48, 63, 78, 93)
     const uint8_t visible_count = 6;
     if (_menuIndex < _menuScrollOffset) {
         _menuScrollOffset = _menuIndex;
@@ -285,48 +316,45 @@ void TftDisplay::drawMenuScreen() {
         tft.setTextSize(1);
         tft.setCursor(4, y + 3);
 
-        // Indicator
         tft.print(isSelected ? (_inEditMode ? "* " : "> ") : "  ");
 
-        // Label & Value
         switch (item_idx) {
-            case 0: // X-OVER FREQ
+            case 0:
                 tft.printf("X-OVER FREQ: %4.0f Hz", cfg.xover_freq);
                 break;
-            case 1: // X-OVER SLOPE
+            case 1:
                 tft.printf("SLOPE      : %2u dB LR", cfg.xover_slope);
                 break;
-            case 2: // SUB GAIN
+            case 2:
                 tft.printf("SUB GAIN   : %+4.1f dB", cfg.sub.gain_db);
                 break;
-            case 3: // MID GAIN
+            case 3:
                 tft.printf("MID GAIN   : %+4.1f dB", cfg.mid.gain_db);
                 break;
-            case 4: // MASTER VOL
+            case 4:
                 tft.printf("MASTER VOL : %+4.0f dB", cfg.master_gain_db);
                 break;
-            case 5: // SUB PHASE
+            case 5:
                 tft.printf("SUB PHASE  : %s", cfg.sub.polarity_inverted ? "INVERT 180" : "NORMAL");
                 break;
-            case 6: // MID PHASE
+            case 6:
                 tft.printf("MID PHASE  : %s", cfg.mid.polarity_inverted ? "INVERT 180" : "NORMAL");
                 break;
-            case 7: // MUTE
+            case 7:
                 tft.printf("MUTE       : %s", cfg.mute ? "MUTED [ON]" : "UNMUTED");
                 break;
-            case 8: // LOAD PRESET
+            case 8:
                 tft.printf("LOAD PRESET: Slot %u", presetsManager.getCurrentSlot());
                 break;
-            case 9: // SAVE TO NVS
+            case 9:
                 tft.printf("SAVE PRESET: [KLIK]");
                 break;
-            case 10: // BACK
+            case 10:
                 tft.printf("< KEMBALI KE VU METER >");
                 break;
         }
     }
 
-    // Bottom Help Banner
     tft.fillRect(0, 114, 160, 14, 0x01A3);
     tft.setTextColor(_inEditMode ? COLOR_YELLOW : COLOR_ACCENT);
     tft.setCursor(6, 117);
@@ -342,7 +370,7 @@ void TftDisplay::applyMenuEdit(int32_t delta) {
 
     switch (_menuIndex) {
         case 0: { // X-OVER FREQ
-            int current_idx = 6; // default 100Hz
+            int current_idx = 6;
             float min_diff = 99999.0f;
             for (size_t i = 0; i < FREQ_STEPS_COUNT; i++) {
                 float diff = fabsf(FREQ_STEPS[i] - cfg.xover_freq);
@@ -427,7 +455,6 @@ void TftDisplay::executeMenuSelect() {
         DspConfig currentCfg = dspEngine.getConfig();
         presetsManager.savePreset(presetsManager.getCurrentSlot(), currentCfg);
 
-        // Flash Confirmation Banner
         tft.fillRect(0, 114, 160, 14, COLOR_GREEN);
         tft.setTextColor(COLOR_BG);
         tft.setCursor(20, 117);
@@ -437,7 +464,6 @@ void TftDisplay::executeMenuSelect() {
         return;
     }
 
-    // Toggle Edit Mode for current parameter
     _inEditMode = !_inEditMode;
     drawMenuScreen();
 }
@@ -447,27 +473,23 @@ void TftDisplay::handleEncoder(int32_t delta, bool clicked, bool longPressed) {
 
     _lastUserActivityTime = millis();
 
-    // Long press always returns to Home screen immediately
     if (longPressed) {
         setScreenMode(SCREEN_HOME);
         return;
     }
 
     if (_currentMode == SCREEN_HOME) {
-        // "TEKAN ENCODER UNTUK AKTIFKAN ROTARY ENCODER"
         if (clicked) {
             setScreenMode(SCREEN_MENU);
         }
         return;
     }
 
-    // In Menu Screen:
     if (_inEditMode) {
         if (delta != 0) {
             applyMenuEdit(delta);
         }
         if (clicked) {
-            // Confirm and lock in
             _inEditMode = false;
             drawMenuScreen();
         }
@@ -492,13 +514,11 @@ void TftDisplay::update() {
 
     unsigned long now = millis();
 
-    // 1. Auto-return to Home Screen after 15 seconds of inactivity in menu
     if (_currentMode == SCREEN_MENU && (now - _lastUserActivityTime > 15000)) {
         setScreenMode(SCREEN_HOME);
         return;
     }
 
-    // 2. High-speed, smooth 25 FPS update for VU Meter on Home Screen
     if (_currentMode == SCREEN_HOME && (now - _lastRenderTime >= 40)) {
         _lastRenderTime = now;
         updateHomeDynamicData();

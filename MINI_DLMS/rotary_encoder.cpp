@@ -2,10 +2,6 @@
 
 RotaryEncoder rotaryEncoder;
 
-static void IRAM_ATTR encoderIsrTrampoline() {
-    rotaryEncoder.handleEncoderIsr();
-}
-
 RotaryEncoder::RotaryEncoder()
     : _clkPin(ENCODER_CLK_PIN),
       _dtPin(ENCODER_DT_PIN),
@@ -26,6 +22,7 @@ void RotaryEncoder::begin(uint8_t clk_pin, uint8_t dt_pin, uint8_t sw_pin) {
     _dtPin  = dt_pin;
     _swPin  = sw_pin;
 
+    // Use internal pull-ups
     pinMode(_clkPin, INPUT_PULLUP);
     pinMode(_dtPin,  INPUT_PULLUP);
     pinMode(_swPin,  INPUT_PULLUP);
@@ -34,34 +31,31 @@ void RotaryEncoder::begin(uint8_t clk_pin, uint8_t dt_pin, uint8_t sw_pin) {
     uint8_t lsb = digitalRead(_dtPin);
     _lastEncoded = (msb << 1) | lsb;
 
-    attachInterrupt(digitalPinToInterrupt(_clkPin), encoderIsrTrampoline, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(_dtPin),  encoderIsrTrampoline, CHANGE);
-
     _lastBtnReading = digitalRead(_swPin);
     _btnState = (_lastBtnReading == LOW);
 }
 
-void IRAM_ATTR RotaryEncoder::handleEncoderIsr() {
-    uint8_t msb = digitalRead(_clkPin);
-    uint8_t lsb = digitalRead(_dtPin);
-    uint8_t encoded = (msb << 1) | lsb;
-    uint8_t sum = (_lastEncoded << 2) | encoded;
-
-    // Standard Quadrature State Table
-    // Transitions that indicate clockwise rotation
-    if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) {
-        _encoderDelta++;
-    }
-    // Transitions that indicate counter-clockwise rotation
-    else if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) {
-        _encoderDelta--;
-    }
-
-    _lastEncoded = encoded;
+void RotaryEncoder::handleEncoderIsr() {
+    // Kept for backward compatibility if needed
 }
 
 void RotaryEncoder::update() {
-    // 1. Debounce and read Push Button
+    // 1. Safe polling-based quadrature decoding (Zero CPU crash/interrupt storm risk)
+    uint8_t msb = digitalRead(_clkPin);
+    uint8_t lsb = digitalRead(_dtPin);
+    uint8_t encoded = (msb << 1) | lsb;
+
+    if (encoded != _lastEncoded) {
+        uint8_t sum = (_lastEncoded << 2) | encoded;
+        if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) {
+            _encoderDelta++;
+        } else if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) {
+            _encoderDelta--;
+        }
+        _lastEncoded = encoded;
+    }
+
+    // 2. Debounce and read Push Button
     bool reading = digitalRead(_swPin);
     unsigned long now = millis();
 
@@ -95,15 +89,12 @@ void RotaryEncoder::update() {
 }
 
 int32_t RotaryEncoder::getDelta() {
-    noInterrupts();
     int32_t val = _encoderDelta;
-    // Most EC11 encoders give 2 or 4 pulses per physical detent click
-    // We step per 2 transitions for smooth, 1-click-per-detent feeling
+    // Step per 2 transitions for smooth, 1-click-per-detent feeling
     int32_t steps = val / 2;
     if (steps != 0) {
         _encoderDelta -= steps * 2;
     }
-    interrupts();
     return steps;
 }
 
