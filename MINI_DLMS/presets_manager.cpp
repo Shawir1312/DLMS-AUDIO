@@ -18,7 +18,7 @@ DspConfig PresetsManager::getDefaultConfig() {
     cfg.xover_freq = 100.0f;
     cfg.xover_slope = SLOPE_24DB;
 
-    // CHANNEL 1 (DAC 1 / LEFT):
+    // CHANNEL 1 (DAC 1 / LEFT): Subwoofer Crossover Defaults
     cfg.ch1.gain_db = 0.0f;
     cfg.ch1.mute = false;
     cfg.ch1.polarity_inverted = false;
@@ -26,15 +26,15 @@ DspConfig PresetsManager::getDefaultConfig() {
     cfg.ch1.hpf.enabled = true;
     cfg.ch1.hpf.freq = 25.0f;
     cfg.ch1.hpf.slope = SLOPE_24DB;
-    cfg.ch1.lpf.enabled = false;
-    cfg.ch1.lpf.freq = 20000.0f;
+    cfg.ch1.lpf.enabled = true;
+    cfg.ch1.lpf.freq = 100.0f;
     cfg.ch1.lpf.slope = SLOPE_24DB;
     cfg.ch1.limiter.enabled = true;
     cfg.ch1.limiter.threshold_db = -1.0f;
     cfg.ch1.limiter.attack_ms = 10.0f;
     cfg.ch1.limiter.release_ms = 100.0f;
 
-    const float default_ch1_freqs[3] = { 50.0f, 100.0f, 250.0f };
+    const float default_ch1_freqs[3] = { 45.0f, 80.0f, 120.0f };
     for (int i = 0; i < 3; i++) {
         cfg.ch1.peq[i].enabled = true;
         cfg.ch1.peq[i].type = (i == 0) ? PEQ_LOW_SHELF : PEQ_PEAK;
@@ -43,13 +43,13 @@ DspConfig PresetsManager::getDefaultConfig() {
         cfg.ch1.peq[i].q = 1.0f;
     }
 
-    // CHANNEL 2 (DAC 2 / RIGHT):
+    // CHANNEL 2 (DAC 2 / RIGHT): Mid/High Crossover Defaults
     cfg.ch2.gain_db = 0.0f;
     cfg.ch2.mute = false;
     cfg.ch2.polarity_inverted = false;
     cfg.ch2.delay_ms = 0.0f;
-    cfg.ch2.hpf.enabled = false;
-    cfg.ch2.hpf.freq = 20.0f;
+    cfg.ch2.hpf.enabled = true;
+    cfg.ch2.hpf.freq = 100.0f;
     cfg.ch2.hpf.slope = SLOPE_24DB;
     cfg.ch2.lpf.enabled = false;
     cfg.ch2.lpf.freq = 20000.0f;
@@ -86,12 +86,12 @@ bool PresetsManager::begin() {
         return false;
     }
 
-    // Check if initial format has been done (v2 for dual independent DACs)
+    // Check if initial format has been done (v3 for tuned subwoofer crossover defaults)
     uint32_t magic = prefs.getUInt("magic", 0);
-    if (magic != 0x534E4532) { // 'SNE2'
-        Serial.println("[NVS] Formatting independent 2-channel default presets...");
+    if (magic != 0x534E4533) { // 'SNE3'
+        Serial.println("[NVS] Formatting tuned crossover default presets...");
         resetAllToDefault();
-        prefs.putUInt("magic", 0x534E4532);
+        prefs.putUInt("magic", 0x534E4533);
     }
 
     _currentSlot = (uint8_t)prefs.getUChar("active_slot", 1);

@@ -56,15 +56,15 @@ DspEngine::DspEngine()
     _config.ch1.hpf.enabled = true;
     _config.ch1.hpf.freq = 25.0f;
     _config.ch1.hpf.slope = SLOPE_24DB;
-    _config.ch1.lpf.enabled = false;
-    _config.ch1.lpf.freq = 20000.0f;
+    _config.ch1.lpf.enabled = true;
+    _config.ch1.lpf.freq = 100.0f;
     _config.ch1.lpf.slope = SLOPE_24DB;
     _config.ch1.limiter.enabled = true;
     _config.ch1.limiter.threshold_db = -1.0f;
     _config.ch1.limiter.attack_ms = 10.0f;
     _config.ch1.limiter.release_ms = 100.0f;
 
-    const float default_ch1_freqs[3] = { 50.0f, 100.0f, 250.0f };
+    const float default_ch1_freqs[3] = { 45.0f, 80.0f, 120.0f };
     for (int i = 0; i < 3; i++) {
         _config.ch1.peq[i].enabled = true;
         _config.ch1.peq[i].type = (i == 0) ? PEQ_LOW_SHELF : PEQ_PEAK;
@@ -80,8 +80,8 @@ DspEngine::DspEngine()
     _config.ch2.mute = false;
     _config.ch2.polarity_inverted = false;
     _config.ch2.delay_ms = 0.0f;
-    _config.ch2.hpf.enabled = false;
-    _config.ch2.hpf.freq = 20.0f;
+    _config.ch2.hpf.enabled = true;
+    _config.ch2.hpf.freq = 100.0f;
     _config.ch2.hpf.slope = SLOPE_24DB;
     _config.ch2.lpf.enabled = false;
     _config.ch2.lpf.freq = 20000.0f;
