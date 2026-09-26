@@ -32,7 +32,7 @@ static const float FREQ_STEPS[] = {
 };
 static const size_t FREQ_STEPS_COUNT = sizeof(FREQ_STEPS) / sizeof(FREQ_STEPS[0]);
 
-#define MENU_ITEM_COUNT 15
+#define MENU_ITEM_COUNT 37
 
 TftDisplay::TftDisplay()
     : _currentMode(SCREEN_HOME),
@@ -52,6 +52,17 @@ TftDisplay::TftDisplay()
       _prevCh1Hpf(-1.0f),
       _prevCh2Hpf(-1.0f),
       _prevPreset(255),
+      _prevCh1Mute(false),
+      _prevCh2Mute(false),
+      _prevCh1HpfEn(false),
+      _prevCh1HpfFreq(-1.0f),
+      _prevCh1LpfEn(false),
+      _prevCh1LpfFreq(-1.0f),
+      _prevCh2HpfEn(false),
+      _prevCh2HpfFreq(-1.0f),
+      _prevCh2LpfEn(false),
+      _prevCh2LpfFreq(-1.0f),
+      _prevEqMask(255),
       _prevRenderedMenuIndex(-1),
       _prevRenderedScrollOffset(-1),
       _prevRenderedEditMode(false)
@@ -147,6 +158,17 @@ void TftDisplay::setScreenMode(DisplayScreenMode mode) {
         _prevCh2Gain = -999.0f;
         _prevCh1Hpf = -1.0f;
         _prevCh2Hpf = -1.0f;
+        _prevCh1Mute = false;
+        _prevCh2Mute = false;
+        _prevCh1HpfEn = false;
+        _prevCh1HpfFreq = -1.0f;
+        _prevCh1LpfEn = false;
+        _prevCh1LpfFreq = -1.0f;
+        _prevCh2HpfEn = false;
+        _prevCh2HpfFreq = -1.0f;
+        _prevCh2LpfEn = false;
+        _prevCh2LpfFreq = -1.0f;
+        _prevEqMask = 255;
         _prevPreset = 255;
         drawHomeScreenLayout();
     } else {
@@ -264,37 +286,94 @@ void TftDisplay::updateHomeDynamicData() {
         tft.print(b2);
     }
 
-    // 3. System Information Box lines (only redraw when changed)
-    if (fabsf(cfg.ch1.gain_db - _prevCh1Gain) > 0.2f || fabsf(cfg.ch2.gain_db - _prevCh2Gain) > 0.2f) {
+    // 3. System Information Box lines (Real-time Crossover & EQ Status Display)
+    bool ch1M = cfg.ch1.mute || cfg.mute;
+    bool ch2M = cfg.ch2.mute || cfg.mute;
+    if (fabsf(cfg.ch1.gain_db - _prevCh1Gain) > 0.2f || 
+        fabsf(cfg.ch2.gain_db - _prevCh2Gain) > 0.2f ||
+        ch1M != _prevCh1Mute || ch2M != _prevCh2Mute) {
         _prevCh1Gain = cfg.ch1.gain_db;
         _prevCh2Gain = cfg.ch2.gain_db;
-        tft.fillRect(6, 66, 148, 9, COLOR_BG);
-        tft.setCursor(6, 66);
-        tft.setTextColor(COLOR_TEXT_BRT, COLOR_BG);
-        tft.printf("CH1:%+4.1fdB | CH2:%+4.1fdB", cfg.ch1.gain_db, cfg.ch2.gain_db);
-    }
-
-    if (fabsf(cfg.ch1.hpf.freq - _prevCh1Hpf) > 0.5f || fabsf(cfg.ch2.hpf.freq - _prevCh2Hpf) > 0.5f) {
-        _prevCh1Hpf = cfg.ch1.hpf.freq;
-        _prevCh2Hpf = cfg.ch2.hpf.freq;
-        tft.fillRect(6, 77, 148, 9, COLOR_BG);
-        tft.setCursor(6, 77);
-        tft.setTextColor(COLOR_ACCENT, COLOR_BG);
-        tft.printf("HPF1:%4.0fHz | HPF2:%4.0fHz", cfg.ch1.hpf.freq, cfg.ch2.hpf.freq);
-    }
-
-    uint8_t curSlot = presetsManager.getCurrentSlot();
-    if (curSlot != _prevPreset) {
-        _prevPreset = curSlot;
-        tft.fillRect(6, 88, 148, 9, COLOR_BG);
-        tft.setCursor(6, 88);
-        tft.setTextColor(COLOR_YELLOW, COLOR_BG);
-        tft.printf("PRESET: Slot %u [ACTIVE]", curSlot);
-
-        tft.fillRect(6, 99, 148, 9, COLOR_BG);
-        tft.setCursor(6, 99);
+        _prevCh1Mute = ch1M;
+        _prevCh2Mute = ch2M;
+        tft.fillRect(4, 65, 152, 9, COLOR_BG);
+        tft.setCursor(6, 65);
+        tft.setTextColor(ch1M ? COLOR_RED : COLOR_TEXT_BRT, COLOR_BG);
+        tft.printf("CH1:%+4.1fdB%s", cfg.ch1.gain_db, ch1M ? "[M]" : "  ");
         tft.setTextColor(COLOR_TEXT_DIM, COLOR_BG);
-        tft.printf("IP: %s", webServerDsp.getIpAddress().c_str());
+        tft.print(" | ");
+        tft.setTextColor(ch2M ? COLOR_RED : COLOR_TEXT_BRT, COLOR_BG);
+        tft.printf("CH2:%+4.1fdB%s", cfg.ch2.gain_db, ch2M ? "[M]" : "  ");
+    }
+
+    // Line 2 (Y=76): Channel 1 Crossover (HPF & LPF)
+    bool ch1HpfEn = cfg.ch1.hpf.enabled;
+    float ch1HpfFreq = cfg.ch1.hpf.freq;
+    bool ch1LpfEn = cfg.ch1.lpf.enabled;
+    float ch1LpfFreq = cfg.ch1.lpf.freq;
+    if (ch1HpfEn != _prevCh1HpfEn || fabsf(ch1HpfFreq - _prevCh1HpfFreq) > 0.5f ||
+        ch1LpfEn != _prevCh1LpfEn || fabsf(ch1LpfFreq - _prevCh1LpfFreq) > 0.5f) {
+        _prevCh1HpfEn = ch1HpfEn;
+        _prevCh1HpfFreq = ch1HpfFreq;
+        _prevCh1LpfEn = ch1LpfEn;
+        _prevCh1LpfFreq = ch1LpfFreq;
+
+        tft.fillRect(4, 76, 152, 9, COLOR_BG);
+        tft.setCursor(6, 76);
+        tft.setTextColor(COLOR_ACCENT, COLOR_BG);
+        tft.print("XO1: ");
+        if (ch1HpfEn) tft.printf("H:%4.0f ", ch1HpfFreq);
+        else tft.print("H:OFF  ");
+        if (ch1LpfEn) tft.printf("L:%4.0f", ch1LpfFreq);
+        else tft.print("L:OFF ");
+    }
+
+    // Line 3 (Y=87): Channel 2 Crossover (HPF & LPF)
+    bool ch2HpfEn = cfg.ch2.hpf.enabled;
+    float ch2HpfFreq = cfg.ch2.hpf.freq;
+    bool ch2LpfEn = cfg.ch2.lpf.enabled;
+    float ch2LpfFreq = cfg.ch2.lpf.freq;
+    if (ch2HpfEn != _prevCh2HpfEn || fabsf(ch2HpfFreq - _prevCh2HpfFreq) > 0.5f ||
+        ch2LpfEn != _prevCh2LpfEn || fabsf(ch2LpfFreq - _prevCh2LpfFreq) > 0.5f) {
+        _prevCh2HpfEn = ch2HpfEn;
+        _prevCh2HpfFreq = ch2HpfFreq;
+        _prevCh2LpfEn = ch2LpfEn;
+        _prevCh2LpfFreq = ch2LpfFreq;
+
+        tft.fillRect(4, 87, 152, 9, COLOR_BG);
+        tft.setCursor(6, 87);
+        tft.setTextColor(COLOR_ACCENT, COLOR_BG);
+        tft.print("XO2: ");
+        if (ch2HpfEn) tft.printf("H:%4.0f ", ch2HpfFreq);
+        else tft.print("H:OFF  ");
+        if (ch2LpfEn) tft.printf("L:%4.0f", ch2LpfFreq);
+        else tft.print("L:OFF ");
+    }
+
+    // Line 4 (Y=98): EQ Active Bands & Active Preset
+    uint8_t eqMask = (cfg.ch1.peq[0].enabled ? 1 : 0) |
+                     (cfg.ch1.peq[1].enabled ? 2 : 0) |
+                     (cfg.ch1.peq[2].enabled ? 4 : 0) |
+                     (cfg.ch2.peq[0].enabled ? 8 : 0) |
+                     (cfg.ch2.peq[1].enabled ? 16 : 0) |
+                     (cfg.ch2.peq[2].enabled ? 32 : 0);
+    uint8_t curSlot = presetsManager.getCurrentSlot();
+    if (eqMask != _prevEqMask || curSlot != _prevPreset) {
+        _prevEqMask = eqMask;
+        _prevPreset = curSlot;
+
+        tft.fillRect(4, 98, 152, 9, COLOR_BG);
+        tft.setCursor(6, 98);
+        tft.setTextColor(COLOR_YELLOW, COLOR_BG);
+        tft.printf("EQ1:[%c%c%c] EQ2:[%c%c%c] P%u",
+            cfg.ch1.peq[0].enabled ? '1' : '-',
+            cfg.ch1.peq[1].enabled ? '2' : '-',
+            cfg.ch1.peq[2].enabled ? '3' : '-',
+            cfg.ch2.peq[0].enabled ? '1' : '-',
+            cfg.ch2.peq[1].enabled ? '2' : '-',
+            cfg.ch2.peq[2].enabled ? '3' : '-',
+            curSlot
+        );
     }
 }
 
@@ -329,51 +408,43 @@ void TftDisplay::drawMenuRow(uint8_t row, bool isSelected, bool isEditMode) {
     tft.print(isSelected ? (isEditMode ? "* " : "> ") : "  ");
 
     switch (item_idx) {
-        case 0:
-            tft.printf("CH1 GAIN   : %+4.1f dB", cfg.ch1.gain_db);
-            break;
-        case 1:
-            tft.printf("CH2 GAIN   : %+4.1f dB", cfg.ch2.gain_db);
-            break;
-        case 2:
-            tft.printf("CH1 HPF    : %4.0f Hz", cfg.ch1.hpf.freq);
-            break;
-        case 3:
-            tft.printf("CH1 LPF    : %4.0f Hz", cfg.ch1.lpf.freq);
-            break;
-        case 4:
-            tft.printf("CH2 HPF    : %4.0f Hz", cfg.ch2.hpf.freq);
-            break;
-        case 5:
-            tft.printf("CH2 LPF    : %4.0f Hz", cfg.ch2.lpf.freq);
-            break;
-        case 6:
-            tft.printf("CH1 PHASE  : %s", cfg.ch1.polarity_inverted ? "INVERT 180" : "NORMAL");
-            break;
-        case 7:
-            tft.printf("CH2 PHASE  : %s", cfg.ch2.polarity_inverted ? "INVERT 180" : "NORMAL");
-            break;
-        case 8:
-            tft.printf("CH1 MUTE   : %s", cfg.ch1.mute ? "MUTED [ON]" : "UNMUTED");
-            break;
-        case 9:
-            tft.printf("CH2 MUTE   : %s", cfg.ch2.mute ? "MUTED [ON]" : "UNMUTED");
-            break;
-        case 10:
-            tft.printf("MASTER VOL : %+4.0f dB", cfg.master_gain_db);
-            break;
-        case 11:
-            tft.printf("ALL MUTE   : %s", cfg.mute ? "MUTED [ON]" : "UNMUTED");
-            break;
-        case 12:
-            tft.printf("LOAD PRESET: Slot %u", presetsManager.getCurrentSlot());
-            break;
-        case 13:
-            tft.printf("SAVE PRESET: [KLIK]");
-            break;
-        case 14:
-            tft.printf("< KEMBALI KE VU METER >");
-            break;
+        case 0:  tft.printf("CH1 GAIN   : %+4.1f dB", cfg.ch1.gain_db); break;
+        case 1:  tft.printf("CH2 GAIN   : %+4.1f dB", cfg.ch2.gain_db); break;
+        case 2:  tft.printf("CH1 HPF SW : %s", cfg.ch1.hpf.enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 3:  tft.printf("CH1 HPF FRQ: %4.0f Hz", cfg.ch1.hpf.freq); break;
+        case 4:  tft.printf("CH1 LPF SW : %s", cfg.ch1.lpf.enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 5:  tft.printf("CH1 LPF FRQ: %4.0f Hz", cfg.ch1.lpf.freq); break;
+        case 6:  tft.printf("CH2 HPF SW : %s", cfg.ch2.hpf.enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 7:  tft.printf("CH2 HPF FRQ: %4.0f Hz", cfg.ch2.hpf.freq); break;
+        case 8:  tft.printf("CH2 LPF SW : %s", cfg.ch2.lpf.enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 9:  tft.printf("CH2 LPF FRQ: %4.0f Hz", cfg.ch2.lpf.freq); break;
+        case 10: tft.printf("CH1 EQ1 SW : %s", cfg.ch1.peq[0].enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 11: tft.printf("CH1 EQ1 FRQ: %4.0f Hz", cfg.ch1.peq[0].freq); break;
+        case 12: tft.printf("CH1 EQ1 GAIN:%+4.1f dB", cfg.ch1.peq[0].gain_db); break;
+        case 13: tft.printf("CH1 EQ2 SW : %s", cfg.ch1.peq[1].enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 14: tft.printf("CH1 EQ2 FRQ: %4.0f Hz", cfg.ch1.peq[1].freq); break;
+        case 15: tft.printf("CH1 EQ2 GAIN:%+4.1f dB", cfg.ch1.peq[1].gain_db); break;
+        case 16: tft.printf("CH1 EQ3 SW : %s", cfg.ch1.peq[2].enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 17: tft.printf("CH1 EQ3 FRQ: %4.0f Hz", cfg.ch1.peq[2].freq); break;
+        case 18: tft.printf("CH1 EQ3 GAIN:%+4.1f dB", cfg.ch1.peq[2].gain_db); break;
+        case 19: tft.printf("CH2 EQ1 SW : %s", cfg.ch2.peq[0].enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 20: tft.printf("CH2 EQ1 FRQ: %4.0f Hz", cfg.ch2.peq[0].freq); break;
+        case 21: tft.printf("CH2 EQ1 GAIN:%+4.1f dB", cfg.ch2.peq[0].gain_db); break;
+        case 22: tft.printf("CH2 EQ2 SW : %s", cfg.ch2.peq[1].enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 23: tft.printf("CH2 EQ2 FRQ: %4.0f Hz", cfg.ch2.peq[1].freq); break;
+        case 24: tft.printf("CH2 EQ2 GAIN:%+4.1f dB", cfg.ch2.peq[1].gain_db); break;
+        case 25: tft.printf("CH2 EQ3 SW : %s", cfg.ch2.peq[2].enabled ? "AKTIF [ON]" : "BYPASS [OFF]"); break;
+        case 26: tft.printf("CH2 EQ3 FRQ: %4.0f Hz", cfg.ch2.peq[2].freq); break;
+        case 27: tft.printf("CH2 EQ3 GAIN:%+4.1f dB", cfg.ch2.peq[2].gain_db); break;
+        case 28: tft.printf("CH1 PHASE  : %s", cfg.ch1.polarity_inverted ? "INVERT 180" : "NORMAL"); break;
+        case 29: tft.printf("CH2 PHASE  : %s", cfg.ch2.polarity_inverted ? "INVERT 180" : "NORMAL"); break;
+        case 30: tft.printf("CH1 MUTE   : %s", cfg.ch1.mute ? "MUTED [ON]" : "UNMUTED"); break;
+        case 31: tft.printf("CH2 MUTE   : %s", cfg.ch2.mute ? "MUTED [ON]" : "UNMUTED"); break;
+        case 32: tft.printf("MASTER VOL : %+4.0f dB", cfg.master_gain_db); break;
+        case 33: tft.printf("ALL MUTE   : %s", cfg.mute ? "MUTED [ON]" : "UNMUTED"); break;
+        case 34: tft.printf("LOAD PRESET: Slot %u", presetsManager.getCurrentSlot()); break;
+        case 35: tft.printf("SAVE PRESET: [KLIK]"); break;
+        case 36: tft.printf("< KEMBALI KE VU METER >"); break;
     }
 }
 
@@ -454,52 +525,162 @@ void TftDisplay::applyMenuEdit(int32_t delta) {
             dspEngine.setCh2Gain(g);
             break;
         }
-        case 2: { // CH1 HPF
+        case 2: { // CH1 HPF SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch1.hpf.enabled);
+            dspEngine.setCh1Hpf(en, cfg.ch1.hpf.freq, cfg.ch1.hpf.slope);
+            break;
+        }
+        case 3: { // CH1 HPF FRQ
             float f = stepFrequency(cfg.ch1.hpf.freq, delta);
-            dspEngine.setCh1Hpf(true, f, cfg.ch1.hpf.slope);
+            dspEngine.setCh1Hpf(cfg.ch1.hpf.enabled, f, cfg.ch1.hpf.slope);
             break;
         }
-        case 3: { // CH1 LPF
+        case 4: { // CH1 LPF SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch1.lpf.enabled);
+            dspEngine.setCh1Lpf(en, cfg.ch1.lpf.freq, cfg.ch1.lpf.slope);
+            break;
+        }
+        case 5: { // CH1 LPF FRQ
             float f = stepFrequency(cfg.ch1.lpf.freq, delta);
-            dspEngine.setCh1Lpf(true, f, cfg.ch1.lpf.slope);
+            dspEngine.setCh1Lpf(cfg.ch1.lpf.enabled, f, cfg.ch1.lpf.slope);
             break;
         }
-        case 4: { // CH2 HPF
+        case 6: { // CH2 HPF SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch2.hpf.enabled);
+            dspEngine.setCh2Hpf(en, cfg.ch2.hpf.freq, cfg.ch2.hpf.slope);
+            break;
+        }
+        case 7: { // CH2 HPF FRQ
             float f = stepFrequency(cfg.ch2.hpf.freq, delta);
-            dspEngine.setCh2Hpf(true, f, cfg.ch2.hpf.slope);
+            dspEngine.setCh2Hpf(cfg.ch2.hpf.enabled, f, cfg.ch2.hpf.slope);
             break;
         }
-        case 5: { // CH2 LPF
+        case 8: { // CH2 LPF SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch2.lpf.enabled);
+            dspEngine.setCh2Lpf(en, cfg.ch2.lpf.freq, cfg.ch2.lpf.slope);
+            break;
+        }
+        case 9: { // CH2 LPF FRQ
             float f = stepFrequency(cfg.ch2.lpf.freq, delta);
-            dspEngine.setCh2Lpf(true, f, cfg.ch2.lpf.slope);
+            dspEngine.setCh2Lpf(cfg.ch2.lpf.enabled, f, cfg.ch2.lpf.slope);
             break;
         }
-        case 6: { // CH1 PHASE
+        case 10: { // CH1 EQ1 SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch1.peq[0].enabled);
+            dspEngine.setCh1Peq(0, en, cfg.ch1.peq[0].type, cfg.ch1.peq[0].freq, cfg.ch1.peq[0].gain_db, cfg.ch1.peq[0].q);
+            break;
+        }
+        case 11: { // CH1 EQ1 FRQ
+            float f = stepFrequency(cfg.ch1.peq[0].freq, delta);
+            dspEngine.setCh1Peq(0, cfg.ch1.peq[0].enabled, cfg.ch1.peq[0].type, f, cfg.ch1.peq[0].gain_db, cfg.ch1.peq[0].q);
+            break;
+        }
+        case 12: { // CH1 EQ1 GAIN
+            float g = cfg.ch1.peq[0].gain_db + (float)delta * 0.5f;
+            dspEngine.setCh1Peq(0, cfg.ch1.peq[0].enabled, cfg.ch1.peq[0].type, cfg.ch1.peq[0].freq, g, cfg.ch1.peq[0].q);
+            break;
+        }
+        case 13: { // CH1 EQ2 SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch1.peq[1].enabled);
+            dspEngine.setCh1Peq(1, en, cfg.ch1.peq[1].type, cfg.ch1.peq[1].freq, cfg.ch1.peq[1].gain_db, cfg.ch1.peq[1].q);
+            break;
+        }
+        case 14: { // CH1 EQ2 FRQ
+            float f = stepFrequency(cfg.ch1.peq[1].freq, delta);
+            dspEngine.setCh1Peq(1, cfg.ch1.peq[1].enabled, cfg.ch1.peq[1].type, f, cfg.ch1.peq[1].gain_db, cfg.ch1.peq[1].q);
+            break;
+        }
+        case 15: { // CH1 EQ2 GAIN
+            float g = cfg.ch1.peq[1].gain_db + (float)delta * 0.5f;
+            dspEngine.setCh1Peq(1, cfg.ch1.peq[1].enabled, cfg.ch1.peq[1].type, cfg.ch1.peq[1].freq, g, cfg.ch1.peq[1].q);
+            break;
+        }
+        case 16: { // CH1 EQ3 SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch1.peq[2].enabled);
+            dspEngine.setCh1Peq(2, en, cfg.ch1.peq[2].type, cfg.ch1.peq[2].freq, cfg.ch1.peq[2].gain_db, cfg.ch1.peq[2].q);
+            break;
+        }
+        case 17: { // CH1 EQ3 FRQ
+            float f = stepFrequency(cfg.ch1.peq[2].freq, delta);
+            dspEngine.setCh1Peq(2, cfg.ch1.peq[2].enabled, cfg.ch1.peq[2].type, f, cfg.ch1.peq[2].gain_db, cfg.ch1.peq[2].q);
+            break;
+        }
+        case 18: { // CH1 EQ3 GAIN
+            float g = cfg.ch1.peq[2].gain_db + (float)delta * 0.5f;
+            dspEngine.setCh1Peq(2, cfg.ch1.peq[2].enabled, cfg.ch1.peq[2].type, cfg.ch1.peq[2].freq, g, cfg.ch1.peq[2].q);
+            break;
+        }
+        case 19: { // CH2 EQ1 SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch2.peq[0].enabled);
+            dspEngine.setCh2Peq(0, en, cfg.ch2.peq[0].type, cfg.ch2.peq[0].freq, cfg.ch2.peq[0].gain_db, cfg.ch2.peq[0].q);
+            break;
+        }
+        case 20: { // CH2 EQ1 FRQ
+            float f = stepFrequency(cfg.ch2.peq[0].freq, delta);
+            dspEngine.setCh2Peq(0, cfg.ch2.peq[0].enabled, cfg.ch2.peq[0].type, f, cfg.ch2.peq[0].gain_db, cfg.ch2.peq[0].q);
+            break;
+        }
+        case 21: { // CH2 EQ1 GAIN
+            float g = cfg.ch2.peq[0].gain_db + (float)delta * 0.5f;
+            dspEngine.setCh2Peq(0, cfg.ch2.peq[0].enabled, cfg.ch2.peq[0].type, cfg.ch2.peq[0].freq, g, cfg.ch2.peq[0].q);
+            break;
+        }
+        case 22: { // CH2 EQ2 SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch2.peq[1].enabled);
+            dspEngine.setCh2Peq(1, en, cfg.ch2.peq[1].type, cfg.ch2.peq[1].freq, cfg.ch2.peq[1].gain_db, cfg.ch2.peq[1].q);
+            break;
+        }
+        case 23: { // CH2 EQ2 FRQ
+            float f = stepFrequency(cfg.ch2.peq[1].freq, delta);
+            dspEngine.setCh2Peq(1, cfg.ch2.peq[1].enabled, cfg.ch2.peq[1].type, f, cfg.ch2.peq[1].gain_db, cfg.ch2.peq[1].q);
+            break;
+        }
+        case 24: { // CH2 EQ2 GAIN
+            float g = cfg.ch2.peq[1].gain_db + (float)delta * 0.5f;
+            dspEngine.setCh2Peq(1, cfg.ch2.peq[1].enabled, cfg.ch2.peq[1].type, cfg.ch2.peq[1].freq, g, cfg.ch2.peq[1].q);
+            break;
+        }
+        case 25: { // CH2 EQ3 SW
+            bool en = (delta > 0) ? true : (delta < 0 ? false : !cfg.ch2.peq[2].enabled);
+            dspEngine.setCh2Peq(2, en, cfg.ch2.peq[2].type, cfg.ch2.peq[2].freq, cfg.ch2.peq[2].gain_db, cfg.ch2.peq[2].q);
+            break;
+        }
+        case 26: { // CH2 EQ3 FRQ
+            float f = stepFrequency(cfg.ch2.peq[2].freq, delta);
+            dspEngine.setCh2Peq(2, cfg.ch2.peq[2].enabled, cfg.ch2.peq[2].type, f, cfg.ch2.peq[2].gain_db, cfg.ch2.peq[2].q);
+            break;
+        }
+        case 27: { // CH2 EQ3 GAIN
+            float g = cfg.ch2.peq[2].gain_db + (float)delta * 0.5f;
+            dspEngine.setCh2Peq(2, cfg.ch2.peq[2].enabled, cfg.ch2.peq[2].type, cfg.ch2.peq[2].freq, g, cfg.ch2.peq[2].q);
+            break;
+        }
+        case 28: { // CH1 PHASE
             dspEngine.setCh1Invert(!cfg.ch1.polarity_inverted);
             break;
         }
-        case 7: { // CH2 PHASE
+        case 29: { // CH2 PHASE
             dspEngine.setCh2Invert(!cfg.ch2.polarity_inverted);
             break;
         }
-        case 8: { // CH1 MUTE
+        case 30: { // CH1 MUTE
             dspEngine.setCh1Mute(!cfg.ch1.mute);
             break;
         }
-        case 9: { // CH2 MUTE
+        case 31: { // CH2 MUTE
             dspEngine.setCh2Mute(!cfg.ch2.mute);
             break;
         }
-        case 10: { // MASTER VOL
+        case 32: { // MASTER VOL
             float g = cfg.master_gain_db + (float)delta * 1.0f;
             dspEngine.setMasterGain(g);
             break;
         }
-        case 11: { // ALL MUTE
+        case 33: { // ALL MUTE
             dspEngine.setMasterMute(!cfg.mute);
             break;
         }
-        case 12: { // LOAD PRESET
+        case 34: { // LOAD PRESET
             uint8_t cur = presetsManager.getCurrentSlot();
             int new_slot = (int)cur + delta;
             if (new_slot < 1) new_slot = 1;
@@ -512,8 +693,8 @@ void TftDisplay::applyMenuEdit(int32_t delta) {
             }
             break;
         }
-        case 13:
-        case 14:
+        case 35: // SAVE PRESET (handled in executeMenuSelect)
+        case 36: // BACK TO HOME (handled in executeMenuSelect)
             break;
     }
 
@@ -522,12 +703,12 @@ void TftDisplay::applyMenuEdit(int32_t delta) {
 }
 
 void TftDisplay::executeMenuSelect() {
-    if (_menuIndex == 14) { // BACK TO HOME
+    if (_menuIndex == 36) { // BACK TO HOME
         setScreenMode(SCREEN_HOME);
         return;
     }
 
-    if (_menuIndex == 13) { // SAVE TO NVS
+    if (_menuIndex == 35) { // SAVE TO NVS
         DspConfig currentCfg = dspEngine.getConfig();
         presetsManager.savePreset(presetsManager.getCurrentSlot(), currentCfg);
 
@@ -540,8 +721,64 @@ void TftDisplay::executeMenuSelect() {
         return;
     }
 
-    _inEditMode = !_inEditMode;
-    drawMenuScreen(false);
+    DspConfig cfg = dspEngine.getConfig();
+
+    // Fast 1-click toggle switches!
+    switch (_menuIndex) {
+        case 2: // CH1 HPF SW
+            dspEngine.setCh1Hpf(!cfg.ch1.hpf.enabled, cfg.ch1.hpf.freq, cfg.ch1.hpf.slope);
+            break;
+        case 4: // CH1 LPF SW
+            dspEngine.setCh1Lpf(!cfg.ch1.lpf.enabled, cfg.ch1.lpf.freq, cfg.ch1.lpf.slope);
+            break;
+        case 6: // CH2 HPF SW
+            dspEngine.setCh2Hpf(!cfg.ch2.hpf.enabled, cfg.ch2.hpf.freq, cfg.ch2.hpf.slope);
+            break;
+        case 8: // CH2 LPF SW
+            dspEngine.setCh2Lpf(!cfg.ch2.lpf.enabled, cfg.ch2.lpf.freq, cfg.ch2.lpf.slope);
+            break;
+        case 10: // CH1 EQ1 SW
+            dspEngine.setCh1Peq(0, !cfg.ch1.peq[0].enabled, cfg.ch1.peq[0].type, cfg.ch1.peq[0].freq, cfg.ch1.peq[0].gain_db, cfg.ch1.peq[0].q);
+            break;
+        case 13: // CH1 EQ2 SW
+            dspEngine.setCh1Peq(1, !cfg.ch1.peq[1].enabled, cfg.ch1.peq[1].type, cfg.ch1.peq[1].freq, cfg.ch1.peq[1].gain_db, cfg.ch1.peq[1].q);
+            break;
+        case 16: // CH1 EQ3 SW
+            dspEngine.setCh1Peq(2, !cfg.ch1.peq[2].enabled, cfg.ch1.peq[2].type, cfg.ch1.peq[2].freq, cfg.ch1.peq[2].gain_db, cfg.ch1.peq[2].q);
+            break;
+        case 19: // CH2 EQ1 SW
+            dspEngine.setCh2Peq(0, !cfg.ch2.peq[0].enabled, cfg.ch2.peq[0].type, cfg.ch2.peq[0].freq, cfg.ch2.peq[0].gain_db, cfg.ch2.peq[0].q);
+            break;
+        case 22: // CH2 EQ2 SW
+            dspEngine.setCh2Peq(1, !cfg.ch2.peq[1].enabled, cfg.ch2.peq[1].type, cfg.ch2.peq[1].freq, cfg.ch2.peq[1].gain_db, cfg.ch2.peq[1].q);
+            break;
+        case 25: // CH2 EQ3 SW
+            dspEngine.setCh2Peq(2, !cfg.ch2.peq[2].enabled, cfg.ch2.peq[2].type, cfg.ch2.peq[2].freq, cfg.ch2.peq[2].gain_db, cfg.ch2.peq[2].q);
+            break;
+        case 28: // CH1 PHASE
+            dspEngine.setCh1Invert(!cfg.ch1.polarity_inverted);
+            break;
+        case 29: // CH2 PHASE
+            dspEngine.setCh2Invert(!cfg.ch2.polarity_inverted);
+            break;
+        case 30: // CH1 MUTE
+            dspEngine.setCh1Mute(!cfg.ch1.mute);
+            break;
+        case 31: // CH2 MUTE
+            dspEngine.setCh2Mute(!cfg.ch2.mute);
+            break;
+        case 33: // ALL MUTE
+            dspEngine.setMasterMute(!cfg.mute);
+            break;
+        default:
+            // Adjust values toggle edit mode
+            _inEditMode = !_inEditMode;
+            break;
+    }
+
+    uint8_t cur_row = _menuIndex - _menuScrollOffset;
+    drawMenuRow(cur_row, true, _inEditMode);
+    drawMenuFooter();
 }
 
 void TftDisplay::handleEncoder(int32_t delta, bool clicked, bool longPressed) {

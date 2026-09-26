@@ -45,6 +45,17 @@ private:
     float   _prevCh1Hpf;
     float   _prevCh2Hpf;
     uint8_t _prevPreset;
+    bool    _prevCh1Mute;
+    bool    _prevCh2Mute;
+    bool    _prevCh1HpfEn;
+    float   _prevCh1HpfFreq;
+    bool    _prevCh1LpfEn;
+    float   _prevCh1LpfFreq;
+    bool    _prevCh2HpfEn;
+    float   _prevCh2HpfFreq;
+    bool    _prevCh2LpfEn;
+    float   _prevCh2LpfFreq;
+    uint8_t _prevEqMask;
     // Previous Menu drawing cache (for 100% flicker-free differential row updates)
     int8_t _prevRenderedMenuIndex;
     int8_t _prevRenderedScrollOffset;
