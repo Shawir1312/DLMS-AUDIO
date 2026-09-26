@@ -92,17 +92,23 @@
 
 ## 🔌 Skema Pengkabelan Hardware
 
-### 1. Layar 1.8" SPI TFT LCD (ST7735 128x160) ke ESP32-S3
-| Pin Layar TFT 1.8" | Pin ESP32-S3 | Fungsi / Deskripsi |
-| :--- | :--- | :--- |
-| **VCC** | **3.3V** atau **5V** | Power layar modul |
-| **GND** | **GND** | Ground |
-| **CS** | **GPIO 10** | Chip Select SPI |
-| **RESET / RES** | **GPIO 14** | Reset TFT |
-| **A0 / DC** | **GPIO 9** | Data / Command Selector |
-| **SDA / MOSI** | **GPIO 11** | SPI Data In (MOSI) |
-| **SCK / SCL** | **GPIO 12** | SPI Clock |
-| **LED / BLK** | **3.3V** (atau **GPIO 13**) | Backlight Layar |
+### 1. Layar 1.8" SPI TFT LCD (Header 8-Pin Bawah) ke ESP32-S3
+Sesuai modul pada foto (Header 8 pin di bagian bawah):
+
+| No & Label Pin Modul | Hubungkan Ke Pin ESP32-S3 | Fungsi / Keterangan |
+| :---: | :--- | :--- |
+| **1 - RST** | **GPIO 14** | Reset Layar LCD |
+| **2 - CS** | **GPIO 10** | Chip Select SPI |
+| **3 - D/C** | **GPIO 9** | Data / Command Selector (RS) |
+| **4 - DIN** | **GPIO 11** | SPI Data In (MOSI / SDA) |
+| **5 - CLK** | **GPIO 12** | SPI Clock (SCK / SCL) |
+| **6 - VCC** | **Pin 5V** (atau **3.3V**) | Daya Modul *(Disarankan 5V ESP32)* |
+| **7 - BL** | **Pin 3.3V** (atau **GPIO 13**) | Backlight / Lampu Latar Layar |
+| **8 - GND** | **GND** | Ground Bersama |
+
+> 💡 **Tips Daya (VCC Modul):**
+> * Sesuai tulisan di modul: `VCC=5V -> J1 OPEN` (default pabrik). Cukup sambungkan **Pin 6 (VCC)** ke **Pin 5V / VIN** ESP32-S3 karena modul sudah memiliki IC regulator penurun tegangan 3.3V onboard (`U21`).
+> * **Pin 7 (BL)** dapat langsung disambungkan ke pin **3.3V** ESP32 agar lampu layar langsung menyala terang stabil.
 
 ---
 
