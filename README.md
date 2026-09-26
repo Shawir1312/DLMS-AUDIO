@@ -102,28 +102,29 @@ Sesuai modul pada foto (Header 8 pin di bagian bawah):
 | **3 - D/C** | **GPIO 9** | Data / Command Selector (RS) |
 | **4 - DIN** | **GPIO 11** | SPI Data In (MOSI / SDA) |
 | **5 - CLK** | **GPIO 12** | SPI Clock (SCK / SCL) |
-| **6 - VCC** | **Pin 5V** (atau **3.3V**) | Daya Modul *(Disarankan 5V ESP32)* |
-| **7 - BL** | **Pin 3.3V** (atau **GPIO 13**) | Backlight / Lampu Latar Layar |
+| **6 - VCC** | **Pin 5V (VIN)** ESP32 | Daya Modul *(WAJIB 5V karena ada regulator U21 onboard)* |
+| **7 - BL** | **Pin 3.3V** (atau **GPIO 8**) | Backlight / Lampu Latar Layar |
 | **8 - GND** | **GND** | Ground Bersama |
 
-> 💡 **Tips Daya (VCC Modul):**
-> * Sesuai tulisan di modul: `VCC=5V -> J1 OPEN` (default pabrik). Cukup sambungkan **Pin 6 (VCC)** ke **Pin 5V / VIN** ESP32-S3 karena modul sudah memiliki IC regulator penurun tegangan 3.3V onboard (`U21`).
-> * **Pin 7 (BL)** dapat langsung disambungkan ke pin **3.3V** ESP32 agar lampu layar langsung menyala terang stabil.
+> ⚠️ **PENTING: MENGATASI LCD SAMAR-SAMAR / BACKLIGHT MATI:**
+> 1. **Pin 7 (BL) WAJIB disambung ke 3.3V ESP32 (atau GPIO 8):** Backlight LCD menarik arus 40-50mA. Jangan biarkan floating. Jika disambungkan langsung ke pin 3.3V ESP32, lampu latar dijamin menyala terang stabil terus-menerus tanpa mati.
+> 2. **Pin 6 (VCC) LCD WAJIB dicolok ke 5V (VIN):** Modul LCD ini memiliki IC regulator 3.3V onboard (`U21`, tulisan: `VCC=5V -> J1 OPEN`). Jika dicolok ke 3.3V, tegangan turun ke ~2.7V sehingga layar terlihat redup / pudar (samar-samar).
+> 3. **Kelupas Plastik Pelindung Layar:** Modul baru memiliki stiker pelindung layar bermotif pemandangan gunung/sunset. Pastikan plastik stiker pelindung ini sudah dikelupas agar tulisan terlihat jernih dan tajam!
 
 ---
 
 ### 2. Rotary Encoder (EC11 + Switch Button) ke ESP32-S3
 | Pin Rotary Encoder | Pin ESP32-S3 | Fungsi / Deskripsi |
 | :--- | :--- | :--- |
-| **CLK (Fase A)** | **GPIO 1** | Pulsa Putar A (Interrupt Handler) |
-| **DT (Fase B)** | **GPIO 2** | Pulsa Putar B (Interrupt Handler) |
+| **CLK (Fase A)** | **GPIO 1** | Pulsa Putar A |
+| **DT (Fase B)** | **GPIO 2** | Pulsa Putar B |
 | **SW (Push Switch)** | **GPIO 42** | Tombol Tekan Encoder (Active LOW) |
 | **+ (VCC)** | **3.3V** | Power VCC Enkoder |
 | **GND** | **GND** | Ground bersama |
 
 ---
 
-### 3. Dual DAC PCM5102 ke ESP32-S3 (2-Way Out)
+### 3. Dual DAC PCM5102 ke ESP32-S3 (2 Independent Channels)
 Kedua modul DAC PCM5102 dihubungkan secara **paralel** ke jalur I2S TX yang sama:
 
 | Pin ESP32-S3 | Sambung Ke DAC 1 & DAC 2 | Fungsi |
@@ -134,10 +135,10 @@ Kedua modul DAC PCM5102 dihubungkan secara **paralel** ke jalur I2S TX yang sama
 | **GND** | **GND** | Ground bersama |
 | **5V** atau **3.3V** | **VCC** | Power Supply DAC |
 
-> **Cara Ambil Output Suara:**
-> * **DAC 1 (SUBWOOFER):** Colokkan kabel RCA / Jack dari **Socket KIRI (L)** ke Amplifier Subwoofer. (Vokal terpotong 100% oleh LPF).
-> * **DAC 2 (MID / HIGH):** Colokkan kabel RCA / Jack dari **Socket KANAN (R)** ke Amplifier Mid/High. (Bass sub diblokir oleh HPF).
-> *(Jika menggunakan 1 board DAC PCM5102 saja, Socket L langsung menjadi Subwoofer dan Socket R langsung menjadi Mid/High).*
+> **Output Audio Bebas & Fleksibel (Bukan Terkunci Sub / Mid):**
+> * **DAC 1 (Channel 1 / Left):** Memiliki DSP mandiri (HPF 20Hz-20kHz 12/24/48dB, LPF 20Hz-20kHz 12/24/48dB, 3-Band PEQ, Gain, Phase, Mute, Delay, Limiter). Bisa diatur bebas: **Subwoofer**, **Mid-Low**, **Fullrange**, atau apapun!
+> * **DAC 2 (Channel 2 / Right):** Memiliki DSP mandiri (HPF 20Hz-20kHz 12/24/48dB, LPF 20Hz-20kHz 12/24/48dB, 3-Band PEQ, Gain, Phase, Mute, Delay, Limiter). Bisa diatur bebas: **Mid/High**, **Tweeter/High**, **Fullrange**, atau apapun!
+> * Ambil output audio: Socket L pada DAC 1 untuk Channel 1, dan Socket R pada DAC 2 untuk Channel 2. (Atau jika memakai 1 board DAC PCM5102 stereo, Socket L = CH1, Socket R = CH2).
 
 > **Konfigurasi Jumper Solder PCB PCM5102:**
 > * `SCK` ──► `GND` *(Wajib! Mengaktifkan Internal PLL generator)*

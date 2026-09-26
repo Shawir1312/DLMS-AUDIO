@@ -7,8 +7,8 @@
 // ============================================================================
 
 // 1. Hardware Pins: Output I2S Master ke PCM5102 DAC (I2S_NUM_1)
-// Channel LEFT  = WAY 1: SUBWOOFER / LOW
-// Channel RIGHT = WAY 2: MID / HIGH
+// Channel LEFT  = DAC 1: CHANNEL 1 (Configurable: Sub / Mid / Low / Full-range)
+// Channel RIGHT = DAC 2: CHANNEL 2 (Configurable: Sub / Mid / High / Full-range)
 #define I2S_TX_BCK_PIN        15   // BCK  -> PCM5102 DAC 1 & 2 BCK
 #define I2S_TX_LRCK_PIN       16   // LRCK -> PCM5102 DAC 1 & 2 LRCK
 #define I2S_TX_DATA_PIN       17   // DIN  -> PCM5102 DAC 1 & 2 DIN
@@ -30,15 +30,15 @@
 // Pin 3 (D/C) -> GPIO 9
 // Pin 4 (DIN) -> GPIO 11
 // Pin 5 (CLK) -> GPIO 12
-// Pin 6 (VCC) -> Wajib colok ke Pin 5V ESP32 (karena J1 open / ada regulator U21)
-// Pin 7 (BL)  -> Wajib colok ke Pin 3.3V ESP32 agar lampu latar selalu hidup stabil
+// Pin 6 (VCC) -> Wajib colok ke Pin 5V (VIN) ESP32 (karena jumper J1 open / modul punya LDO U21)
+// Pin 7 (BL)  -> Colok ke Pin 3.3V ESP32 atau GPIO 8
 // Pin 8 (GND) -> GND
 #define TFT_CS_PIN            10   // Pin 2 - CS
 #define TFT_DC_PIN            9    // Pin 3 - D/C (Command/Data)
 #define TFT_RST_PIN           14   // Pin 1 - RST
 #define TFT_MOSI_PIN          11   // Pin 4 - DIN (SDA/MOSI)
 #define TFT_SCLK_PIN          12   // Pin 5 - CLK (SCK/SCL)
-#define TFT_BL_PIN            -1   // Pin 7 - BL (Sambung langsung ke 3.3V)
+#define TFT_BL_PIN            8    // Pin 7 - BL (GPIO 8 atau colok langsung ke 3.3V)
 
 // 4. Hardware Pins: Rotary Encoder (EC11 dengan Push Button)
 #define ENCODER_CLK_PIN       1    // Pin CLK / A

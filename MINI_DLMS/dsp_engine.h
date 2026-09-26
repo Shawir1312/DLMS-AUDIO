@@ -23,14 +23,34 @@ public:
     void setMute(bool mute) { setMasterMute(mute); }
     void setPolarity(bool inverted);
 
-    // 2-Way Crossover Setters
+    // Channel 1 (DAC 1 / Left) Dedicated Setters
+    void setCh1Gain(float gain_db);
+    void setCh1Mute(bool mute);
+    void setCh1Invert(bool invert);
+    void setCh1Hpf(bool enabled, float freq, uint8_t slope);
+    void setCh1Lpf(bool enabled, float freq, uint8_t slope);
+    void setCh1Delay(float delay_ms);
+    void setCh1Limiter(bool enabled, float threshold_db, float attack_ms, float release_ms);
+    void setCh1Peq(uint8_t band_idx, bool enabled, uint8_t type, float freq, float gain_db, float q);
+
+    // Channel 2 (DAC 2 / Right) Dedicated Setters
+    void setCh2Gain(float gain_db);
+    void setCh2Mute(bool mute);
+    void setCh2Invert(bool invert);
+    void setCh2Hpf(bool enabled, float freq, uint8_t slope);
+    void setCh2Lpf(bool enabled, float freq, uint8_t slope);
+    void setCh2Delay(float delay_ms);
+    void setCh2Limiter(bool enabled, float threshold_db, float attack_ms, float release_ms);
+    void setCh2Peq(uint8_t band_idx, bool enabled, uint8_t type, float freq, float gain_db, float q);
+
+    // 2-Way Crossover Setters (maps to ch1 and ch2)
     void setCrossover(float freq, uint8_t slope);
-    void setSubGain(float gain_db);
-    void setMidGain(float gain_db);
-    void setSubMute(bool mute);
-    void setMidMute(bool mute);
-    void setSubInvert(bool invert);
-    void setMidInvert(bool invert);
+    void setSubGain(float gain_db) { setCh1Gain(gain_db); }
+    void setMidGain(float gain_db) { setCh2Gain(gain_db); }
+    void setSubMute(bool mute) { setCh1Mute(mute); }
+    void setMidMute(bool mute) { setCh2Mute(mute); }
+    void setSubInvert(bool invert) { setCh1Invert(invert); }
+    void setMidInvert(bool invert) { setCh2Invert(invert); }
 
     // Legacy setters (maintain full compatibility)
     void setHpf(bool enabled, float freq, uint8_t slope);
@@ -41,7 +61,7 @@ public:
 
     // Main Audio Processing function (runs on Core 1)
     // in_pcm: 16-bit signed stereo interleaved (L, R, L, R)
-    // out_pcm: 16-bit signed stereo interleaved (L = Sub, R = Mid/High)
+    // out_pcm: 16-bit signed stereo interleaved (L = DAC 1 / CH1, R = DAC 2 / CH2)
     // frame_count: number of stereo sample frames (len_bytes / 4)
     void processAudio(const int16_t* in_pcm, int16_t* out_pcm, size_t frame_count);
 
@@ -54,50 +74,50 @@ private:
 
     // Linear gains
     float _masterGainLinear;
-    float _subGainLinear;
-    float _midGainLinear;
+    float _ch1GainLinear;
+    float _ch2GainLinear;
 
-    // Subwoofer path biquads (OUT 1 / LEFT)
-    Biquad _subHpf[4];       // Subsonic HPF (up to 48dB)
-    Biquad _subLpf[4];       // Crossover LPF (up to 48dB)
-    Biquad _subPeq[2];       // Sub Bands (0, 1)
+    // Channel 1 path biquads (DAC 1 / OUT LEFT)
+    Biquad _ch1Hpf[4];       // HPF (up to 48dB)
+    Biquad _ch1Lpf[4];       // LPF (up to 48dB)
+    Biquad _ch1Peq[3];       // 3 Dedicated Parametric EQ Bands
 
-    // Mid/High path biquads (OUT 2 / RIGHT)
-    Biquad _midHpf[4];       // Crossover HPF (up to 48dB)
-    Biquad _midLpf[2];       // Tweeter protection LPF (up to 24dB)
-    Biquad _midPeq[3];       // Mid/High Bands (2, 3, 4)
+    // Channel 2 path biquads (DAC 2 / OUT RIGHT)
+    Biquad _ch2Hpf[4];       // HPF (up to 48dB)
+    Biquad _ch2Lpf[4];       // LPF (up to 48dB)
+    Biquad _ch2Peq[3];       // 3 Dedicated Parametric EQ Bands
 
-    // Delay lines (Ring Buffers for Sub and Mid alignment)
-    float* _subDelayBuffer;
-    float* _midDelayBuffer;
+    // Delay lines (Independent Ring Buffers for CH1 and CH2 alignment)
+    float* _ch1DelayBuffer;
+    float* _ch2DelayBuffer;
     size_t _delayBufferSize;
-    size_t _subDelayWriteIdx;
-    size_t _midDelayWriteIdx;
-    float _subDelaySamples;
-    float _midDelaySamples;
+    size_t _ch1DelayWriteIdx;
+    size_t _ch2DelayWriteIdx;
+    float _ch1DelaySamples;
+    float _ch2DelaySamples;
 
-    // Sub Limiter state
-    float _subLimiterEnvelope;
-    float _subLimiterThresholdLinear;
-    float _subLimiterAttackCoeff;
-    float _subLimiterReleaseCoeff;
+    // Channel 1 Limiter state
+    float _ch1LimiterEnvelope;
+    float _ch1LimiterThresholdLinear;
+    float _ch1LimiterAttackCoeff;
+    float _ch1LimiterReleaseCoeff;
 
-    // Mid Limiter state
-    float _midLimiterEnvelope;
-    float _midLimiterThresholdLinear;
-    float _midLimiterAttackCoeff;
-    float _midLimiterReleaseCoeff;
+    // Channel 2 Limiter state
+    float _ch2LimiterEnvelope;
+    float _ch2LimiterThresholdLinear;
+    float _ch2LimiterAttackCoeff;
+    float _ch2LimiterReleaseCoeff;
     float _currentGainReductionDb;
 
     // VU Meter Accumulators (computed per block with smooth ballistics)
     float _inPeakDb;
     float _inRmsDb;
-    float _subPeakDb;
-    float _subRmsDb;
-    float _midPeakDb;
-    float _midRmsDb;
-    bool  _subClipFlag;
-    bool  _midClipFlag;
+    float _ch1PeakDb;
+    float _ch1RmsDb;
+    float _ch2PeakDb;
+    float _ch2RmsDb;
+    bool  _ch1ClipFlag;
+    bool  _ch2ClipFlag;
 
     // Spinlock for parameter safety across tasks
     portMUX_TYPE _paramMux;

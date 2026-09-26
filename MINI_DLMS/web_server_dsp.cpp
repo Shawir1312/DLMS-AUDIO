@@ -135,15 +135,22 @@ void WebServerDsp::setupRoutes() {
 
         doc["in_peak"] = round(vu.in_peak_db * 10.0f) / 10.0f;
         doc["in_rms"]  = round(vu.in_rms_db * 10.0f) / 10.0f;
-        doc["sub_peak"] = round(vu.sub_peak_db * 10.0f) / 10.0f;
-        doc["sub_rms"]  = round(vu.sub_rms_db * 10.0f) / 10.0f;
-        doc["mid_peak"] = round(vu.mid_peak_db * 10.0f) / 10.0f;
-        doc["mid_rms"]  = round(vu.mid_rms_db * 10.0f) / 10.0f;
+        doc["ch1_peak"] = round(vu.ch1_peak_db * 10.0f) / 10.0f;
+        doc["ch1_rms"]  = round(vu.ch1_rms_db * 10.0f) / 10.0f;
+        doc["ch2_peak"] = round(vu.ch2_peak_db * 10.0f) / 10.0f;
+        doc["ch2_rms"]  = round(vu.ch2_rms_db * 10.0f) / 10.0f;
+        // Legacy mirrors
+        doc["sub_peak"] = doc["ch1_peak"];
+        doc["sub_rms"]  = doc["ch1_rms"];
+        doc["mid_peak"] = doc["ch2_peak"];
+        doc["mid_rms"]  = doc["ch2_rms"];
         doc["out_peak"] = round(vu.out_peak_db * 10.0f) / 10.0f;
         doc["out_rms"]  = round(vu.out_rms_db * 10.0f) / 10.0f;
         doc["limiter_gr"] = round(vu.limiter_gr_db * 10.0f) / 10.0f;
-        doc["sub_clip"] = vu.sub_clip;
-        doc["mid_clip"] = vu.mid_clip;
+        doc["ch1_clip"] = vu.ch1_clip;
+        doc["ch2_clip"] = vu.ch2_clip;
+        doc["sub_clip"] = vu.ch1_clip;
+        doc["mid_clip"] = vu.ch2_clip;
         doc["clip"] = vu.clip;
         doc["bt_state"] = btAudio.getStateString();
         doc["sampleRate"] = btAudio.getSampleRate();
@@ -163,58 +170,73 @@ void WebServerDsp::setupRoutes() {
         doc["mute"] = cfg.mute;
         doc["polarity_inverted"] = cfg.polarity_inverted;
 
-        // 2-Way Crossover
         doc["xover_freq"] = cfg.xover_freq;
         doc["xover_slope"] = cfg.xover_slope;
         doc["xover_linked"] = cfg.xover_linked;
 
-        // Sub Channel
-        JsonObject sub = doc["sub"].to<JsonObject>();
-        sub["gain_db"] = cfg.sub.gain_db;
-        sub["mute"] = cfg.sub.mute;
-        sub["polarity_inverted"] = cfg.sub.polarity_inverted;
-        sub["delay_ms"] = cfg.sub.delay_ms;
-
-        // Mid Channel
-        JsonObject mid = doc["mid"].to<JsonObject>();
-        mid["gain_db"] = cfg.mid.gain_db;
-        mid["mute"] = cfg.mid.mute;
-        mid["polarity_inverted"] = cfg.mid.polarity_inverted;
-        mid["delay_ms"] = cfg.mid.delay_ms;
-
-        // HPF
-        JsonObject hpf = doc["hpf"].to<JsonObject>();
-        hpf["enabled"] = cfg.sub.hpf.enabled;
-        hpf["freq"] = cfg.sub.hpf.freq;
-        hpf["slope"] = cfg.sub.hpf.slope;
-
-        // LPF
-        JsonObject lpf = doc["lpf"].to<JsonObject>();
-        lpf["enabled"] = cfg.sub.lpf.enabled;
-        lpf["freq"] = cfg.xover_freq;
-        lpf["slope"] = cfg.xover_slope;
-
-        // 5-band PEQ
-        JsonArray peq = doc["peq"].to<JsonArray>();
-        for (int i = 0; i < PEQ_BAND_COUNT; i++) {
-            JsonObject band = peq.add<JsonObject>();
-            band["enabled"] = cfg.peq[i].enabled;
-            band["type"] = cfg.peq[i].type;
-            band["freq"] = cfg.peq[i].freq;
-            band["gain_db"] = cfg.peq[i].gain_db;
-            band["q"] = cfg.peq[i].q;
+        // Channel 1 (DAC 1 / Left)
+        JsonObject ch1 = doc["ch1"].to<JsonObject>();
+        ch1["gain_db"] = cfg.ch1.gain_db;
+        ch1["mute"] = cfg.ch1.mute;
+        ch1["polarity_inverted"] = cfg.ch1.polarity_inverted;
+        ch1["delay_ms"] = cfg.ch1.delay_ms;
+        JsonObject ch1_hpf = ch1["hpf"].to<JsonObject>();
+        ch1_hpf["enabled"] = cfg.ch1.hpf.enabled;
+        ch1_hpf["freq"] = cfg.ch1.hpf.freq;
+        ch1_hpf["slope"] = cfg.ch1.hpf.slope;
+        JsonObject ch1_lpf = ch1["lpf"].to<JsonObject>();
+        ch1_lpf["enabled"] = cfg.ch1.lpf.enabled;
+        ch1_lpf["freq"] = cfg.ch1.lpf.freq;
+        ch1_lpf["slope"] = cfg.ch1.lpf.slope;
+        JsonObject ch1_lim = ch1["limiter"].to<JsonObject>();
+        ch1_lim["enabled"] = cfg.ch1.limiter.enabled;
+        ch1_lim["threshold_db"] = cfg.ch1.limiter.threshold_db;
+        ch1_lim["attack_ms"] = cfg.ch1.limiter.attack_ms;
+        ch1_lim["release_ms"] = cfg.ch1.limiter.release_ms;
+        JsonArray ch1_peq = ch1["peq"].to<JsonArray>();
+        for (int i = 0; i < 3; i++) {
+            JsonObject b = ch1_peq.add<JsonObject>();
+            b["enabled"] = cfg.ch1.peq[i].enabled;
+            b["type"] = cfg.ch1.peq[i].type;
+            b["freq"] = cfg.ch1.peq[i].freq;
+            b["gain_db"] = cfg.ch1.peq[i].gain_db;
+            b["q"] = cfg.ch1.peq[i].q;
         }
 
-        // Delay
-        JsonObject delayObj = doc["delay"].to<JsonObject>();
-        delayObj["delay_ms"] = cfg.sub.delay_ms;
+        // Channel 2 (DAC 2 / Right)
+        JsonObject ch2 = doc["ch2"].to<JsonObject>();
+        ch2["gain_db"] = cfg.ch2.gain_db;
+        ch2["mute"] = cfg.ch2.mute;
+        ch2["polarity_inverted"] = cfg.ch2.polarity_inverted;
+        ch2["delay_ms"] = cfg.ch2.delay_ms;
+        JsonObject ch2_hpf = ch2["hpf"].to<JsonObject>();
+        ch2_hpf["enabled"] = cfg.ch2.hpf.enabled;
+        ch2_hpf["freq"] = cfg.ch2.hpf.freq;
+        ch2_hpf["slope"] = cfg.ch2.hpf.slope;
+        JsonObject ch2_lpf = ch2["lpf"].to<JsonObject>();
+        ch2_lpf["enabled"] = cfg.ch2.lpf.enabled;
+        ch2_lpf["freq"] = cfg.ch2.lpf.freq;
+        ch2_lpf["slope"] = cfg.ch2.lpf.slope;
+        JsonObject ch2_lim = ch2["limiter"].to<JsonObject>();
+        ch2_lim["enabled"] = cfg.ch2.limiter.enabled;
+        ch2_lim["threshold_db"] = cfg.ch2.limiter.threshold_db;
+        ch2_lim["attack_ms"] = cfg.ch2.limiter.attack_ms;
+        ch2_lim["release_ms"] = cfg.ch2.limiter.release_ms;
+        JsonArray ch2_peq = ch2["peq"].to<JsonArray>();
+        for (int i = 0; i < 3; i++) {
+            JsonObject b = ch2_peq.add<JsonObject>();
+            b["enabled"] = cfg.ch2.peq[i].enabled;
+            b["type"] = cfg.ch2.peq[i].type;
+            b["freq"] = cfg.ch2.peq[i].freq;
+            b["gain_db"] = cfg.ch2.peq[i].gain_db;
+            b["q"] = cfg.ch2.peq[i].q;
+        }
 
-        // Limiter
-        JsonObject lim = doc["limiter"].to<JsonObject>();
-        lim["enabled"] = cfg.sub.limiter.enabled;
-        lim["threshold_db"] = cfg.sub.limiter.threshold_db;
-        lim["attack_ms"] = cfg.sub.limiter.attack_ms;
-        lim["release_ms"] = cfg.sub.limiter.release_ms;
+        // Backward-compatibility aliases
+        doc["sub"] = ch1;
+        doc["mid"] = ch2;
+        doc["hpf"] = ch1_hpf;
+        doc["lpf"] = ch1_lpf;
 
         String res;
         serializeJson(doc, res);
@@ -247,93 +269,91 @@ void WebServerDsp::setupRoutes() {
             cfg.polarity_inverted = doc["polarity_inverted"];
         }
 
-        // 2-Way Crossover updates
         if (doc["xover_freq"].is<float>()) {
             cfg.xover_freq = doc["xover_freq"];
-            cfg.sub.lpf.freq = cfg.xover_freq;
-            cfg.mid.hpf.freq = cfg.xover_freq;
-            cfg.lpf.freq = cfg.xover_freq;
         }
         if (doc["xover_slope"].is<uint8_t>()) {
             cfg.xover_slope = doc["xover_slope"];
-            cfg.sub.lpf.slope = cfg.xover_slope;
-            cfg.mid.hpf.slope = cfg.xover_slope;
-            cfg.lpf.slope = cfg.xover_slope;
+        }
+        if (doc["xover_linked"].is<bool>()) {
+            cfg.xover_linked = doc["xover_linked"];
         }
 
-        // Sub channel
-        if (doc["sub"].is<JsonObject>()) {
-            JsonObject sub = doc["sub"];
-            if (sub["gain_db"].is<float>()) cfg.sub.gain_db = sub["gain_db"];
-            if (sub["mute"].is<bool>()) cfg.sub.mute = sub["mute"];
-            if (sub["polarity_inverted"].is<bool>()) cfg.sub.polarity_inverted = sub["polarity_inverted"];
-            if (sub["delay_ms"].is<float>()) cfg.sub.delay_ms = sub["delay_ms"];
+        // Helper lambda to parse a ChannelConfig from JSON
+        auto parseChannel = [](JsonObject chObj, ChannelConfig& ch) {
+            if (chObj["gain_db"].is<float>()) ch.gain_db = chObj["gain_db"];
+            if (chObj["mute"].is<bool>()) ch.mute = chObj["mute"];
+            if (chObj["polarity_inverted"].is<bool>()) ch.polarity_inverted = chObj["polarity_inverted"];
+            if (chObj["delay_ms"].is<float>()) ch.delay_ms = chObj["delay_ms"];
+
+            if (chObj["hpf"].is<JsonObject>()) {
+                JsonObject h = chObj["hpf"];
+                if (h["enabled"].is<bool>()) ch.hpf.enabled = h["enabled"];
+                if (h["freq"].is<float>()) ch.hpf.freq = h["freq"];
+                if (h["slope"].is<uint8_t>()) ch.hpf.slope = h["slope"];
+            }
+            if (chObj["lpf"].is<JsonObject>()) {
+                JsonObject l = chObj["lpf"];
+                if (l["enabled"].is<bool>()) ch.lpf.enabled = l["enabled"];
+                if (l["freq"].is<float>()) ch.lpf.freq = l["freq"];
+                if (l["slope"].is<uint8_t>()) ch.lpf.slope = l["slope"];
+            }
+            if (chObj["limiter"].is<JsonObject>()) {
+                JsonObject lim = chObj["limiter"];
+                if (lim["enabled"].is<bool>()) ch.limiter.enabled = lim["enabled"];
+                if (lim["threshold_db"].is<float>()) ch.limiter.threshold_db = lim["threshold_db"];
+                if (lim["attack_ms"].is<float>()) ch.limiter.attack_ms = lim["attack_ms"];
+                if (lim["release_ms"].is<float>()) ch.limiter.release_ms = lim["release_ms"];
+            }
+            if (chObj["peq"].is<JsonArray>()) {
+                JsonArray peq = chObj["peq"];
+                for (size_t i = 0; i < peq.size() && i < 3; i++) {
+                    JsonObject band = peq[i];
+                    if (band["enabled"].is<bool>()) ch.peq[i].enabled = band["enabled"];
+                    if (band["type"].is<uint8_t>()) ch.peq[i].type = band["type"];
+                    if (band["freq"].is<float>()) ch.peq[i].freq = band["freq"];
+                    if (band["gain_db"].is<float>()) ch.peq[i].gain_db = band["gain_db"];
+                    if (band["q"].is<float>()) ch.peq[i].q = band["q"];
+                }
+            }
+        };
+
+        // Parse CH1 (or legacy 'sub')
+        if (doc["ch1"].is<JsonObject>()) {
+            parseChannel(doc["ch1"].as<JsonObject>(), cfg.ch1);
+        } else if (doc["sub"].is<JsonObject>()) {
+            parseChannel(doc["sub"].as<JsonObject>(), cfg.ch1);
         }
 
-        // Mid channel
-        if (doc["mid"].is<JsonObject>()) {
-            JsonObject mid = doc["mid"];
-            if (mid["gain_db"].is<float>()) cfg.mid.gain_db = mid["gain_db"];
-            if (mid["mute"].is<bool>()) cfg.mid.mute = mid["mute"];
-            if (mid["polarity_inverted"].is<bool>()) cfg.mid.polarity_inverted = mid["polarity_inverted"];
-            if (mid["delay_ms"].is<float>()) cfg.mid.delay_ms = mid["delay_ms"];
+        // Parse CH2 (or legacy 'mid')
+        if (doc["ch2"].is<JsonObject>()) {
+            parseChannel(doc["ch2"].as<JsonObject>(), cfg.ch2);
+        } else if (doc["mid"].is<JsonObject>()) {
+            parseChannel(doc["mid"].as<JsonObject>(), cfg.ch2);
         }
 
-        // HPF (Subsonic)
-        if (doc["hpf"].is<JsonObject>()) {
+        // Handle Crossover link if enabled
+        if (cfg.xover_linked) {
+            cfg.ch1.lpf.enabled = true;
+            cfg.ch1.lpf.freq = cfg.xover_freq;
+            cfg.ch1.lpf.slope = cfg.xover_slope;
+            cfg.ch2.hpf.enabled = true;
+            cfg.ch2.hpf.freq = cfg.xover_freq;
+            cfg.ch2.hpf.slope = cfg.xover_slope;
+        }
+
+        // Legacy HPF / LPF fallbacks
+        if (doc["hpf"].is<JsonObject>() && !doc["ch1"].is<JsonObject>()) {
             JsonObject hpf = doc["hpf"];
-            if (hpf["enabled"].is<bool>()) cfg.sub.hpf.enabled = hpf["enabled"];
-            if (hpf["freq"].is<float>()) cfg.sub.hpf.freq = hpf["freq"];
-            if (hpf["slope"].is<uint8_t>()) cfg.sub.hpf.slope = hpf["slope"];
-            cfg.hpf = cfg.sub.hpf;
+            if (hpf["enabled"].is<bool>()) cfg.ch1.hpf.enabled = hpf["enabled"];
+            if (hpf["freq"].is<float>()) cfg.ch1.hpf.freq = hpf["freq"];
+            if (hpf["slope"].is<uint8_t>()) cfg.ch1.hpf.slope = hpf["slope"];
         }
-
-        // LPF (Crossover)
-        if (doc["lpf"].is<JsonObject>()) {
+        if (doc["lpf"].is<JsonObject>() && !doc["ch1"].is<JsonObject>()) {
             JsonObject lpf = doc["lpf"];
-            if (lpf["enabled"].is<bool>()) {
-                cfg.sub.lpf.enabled = lpf["enabled"];
-                cfg.mid.hpf.enabled = lpf["enabled"];
-            }
-            if (lpf["freq"].is<float>()) {
-                cfg.xover_freq = lpf["freq"];
-                cfg.sub.lpf.freq = lpf["freq"];
-                cfg.mid.hpf.freq = lpf["freq"];
-            }
-            if (lpf["slope"].is<uint8_t>()) {
-                cfg.xover_slope = lpf["slope"];
-                cfg.sub.lpf.slope = lpf["slope"];
-                cfg.mid.hpf.slope = lpf["slope"];
-            }
-            cfg.lpf = cfg.sub.lpf;
-        }
-
-        // PEQ
-        if (doc["peq"].is<JsonArray>()) {
-            JsonArray peq = doc["peq"];
-            for (size_t i = 0; i < peq.size() && i < PEQ_BAND_COUNT; i++) {
-                JsonObject band = peq[i];
-                if (band["enabled"].is<bool>()) cfg.peq[i].enabled = band["enabled"];
-                if (band["type"].is<uint8_t>()) cfg.peq[i].type = band["type"];
-                if (band["freq"].is<float>()) cfg.peq[i].freq = band["freq"];
-                if (band["gain_db"].is<float>()) cfg.peq[i].gain_db = band["gain_db"];
-                if (band["q"].is<float>()) cfg.peq[i].q = band["q"];
-            }
-        }
-
-        // Delay
-        if (doc["delay"].is<JsonObject>()) {
-            JsonObject del = doc["delay"];
-            if (del["delay_ms"].is<float>()) cfg.delay.delay_ms = del["delay_ms"];
-        }
-
-        // Limiter
-        if (doc["limiter"].is<JsonObject>()) {
-            JsonObject lim = doc["limiter"];
-            if (lim["enabled"].is<bool>()) cfg.limiter.enabled = lim["enabled"];
-            if (lim["threshold_db"].is<float>()) cfg.limiter.threshold_db = lim["threshold_db"];
-            if (lim["attack_ms"].is<float>()) cfg.limiter.attack_ms = lim["attack_ms"];
-            if (lim["release_ms"].is<float>()) cfg.limiter.release_ms = lim["release_ms"];
+            if (lpf["enabled"].is<bool>()) cfg.ch1.lpf.enabled = lpf["enabled"];
+            if (lpf["freq"].is<float>()) cfg.ch1.lpf.freq = lpf["freq"];
+            if (lpf["slope"].is<uint8_t>()) cfg.ch1.lpf.slope = lpf["slope"];
         }
 
         // Apply safely to DSP Engine

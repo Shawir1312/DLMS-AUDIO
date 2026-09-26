@@ -25,13 +25,14 @@ static Adafruit_ST7735 tft(TFT_CS_PIN, TFT_DC_PIN, TFT_MOSI_PIN, TFT_SCLK_PIN, T
 #define COLOR_SEL_BG     0x0419 // Vibrant Teal
 
 static const float FREQ_STEPS[] = {
-    40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 90.0f, 100.0f, 110.0f, 120.0f, 
-    130.0f, 140.0f, 150.0f, 160.0f, 180.0f, 200.0f, 250.0f, 300.0f, 
-    400.0f, 500.0f, 800.0f, 1000.0f, 1500.0f, 2000.0f, 3000.0f, 5000.0f
+    20.0f, 25.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 90.0f, 100.0f, 
+    120.0f, 150.0f, 180.0f, 200.0f, 250.0f, 300.0f, 400.0f, 500.0f, 800.0f, 
+    1000.0f, 1200.0f, 1500.0f, 2000.0f, 2500.0f, 3000.0f, 4000.0f, 5000.0f, 
+    8000.0f, 10000.0f, 12000.0f, 16000.0f, 20000.0f
 };
 static const size_t FREQ_STEPS_COUNT = sizeof(FREQ_STEPS) / sizeof(FREQ_STEPS[0]);
 
-#define MENU_ITEM_COUNT 11
+#define MENU_ITEM_COUNT 15
 
 TftDisplay::TftDisplay()
     : _currentMode(SCREEN_HOME),
@@ -42,13 +43,14 @@ TftDisplay::TftDisplay()
       _inEditMode(false),
       _menuScrollOffset(0),
       _prevInBarW(0),
-      _prevSubBarW(0),
-      _prevMidBarW(0),
-      _prevSubClip(false),
-      _prevMidClip(false),
-      _prevXover(-1.0f),
-      _prevSubGain(-999.0f),
-      _prevMidGain(-999.0f),
+      _prevCh1BarW(0),
+      _prevCh2BarW(0),
+      _prevCh1Clip(false),
+      _prevCh2Clip(false),
+      _prevCh1Gain(-999.0f),
+      _prevCh2Gain(-999.0f),
+      _prevCh1Hpf(-1.0f),
+      _prevCh2Hpf(-1.0f),
       _prevPreset(255)
 {
 }
@@ -56,10 +58,12 @@ TftDisplay::TftDisplay()
 bool TftDisplay::begin() {
     Serial.println("[TFT] Memulai Inisialisasi Layar 1.8\" ST7735...");
 
-    // 1. Pastikan Backlight menyala (baik dicolok ke 3.3V maupun Pin 13)
+    // 1. Pastikan Backlight menyala (Aktifkan Pin 8 dan Pin 13 dan TFT_BL_PIN)
+    pinMode(8, OUTPUT);
+    digitalWrite(8, HIGH);
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
-    if (TFT_BL_PIN >= 0 && TFT_BL_PIN != 13) {
+    if (TFT_BL_PIN >= 0 && TFT_BL_PIN != 8 && TFT_BL_PIN != 13) {
         pinMode(TFT_BL_PIN, OUTPUT);
         digitalWrite(TFT_BL_PIN, HIGH);
     }
@@ -77,6 +81,7 @@ bool TftDisplay::begin() {
 
     // 3. Inisialisasi ST7735 controller
     tft.initR(INITR_BLACKTAB);
+    tft.invertDisplay(false); // Pastikan warna jernih tidak terbalik / pudar
     delay(50);
     tft.setRotation(1); // Landscape 160 x 128
 
@@ -92,8 +97,8 @@ bool TftDisplay::begin() {
 
     tft.setTextSize(1);
     tft.setTextColor(ST77XX_YELLOW);
-    tft.setCursor(22, 50);
-    tft.print("2-WAY ACTIVE CROSSOVER");
+    tft.setCursor(18, 50);
+    tft.print("2-CH INDEPENDENT DAC");
 
     tft.setTextColor(ST77XX_GREEN);
     tft.setCursor(34, 74);
@@ -110,8 +115,8 @@ bool TftDisplay::begin() {
     _isInitialized = true;
     _lastUserActivityTime = millis();
     _prevInBarW = 0;
-    _prevSubBarW = 0;
-    _prevMidBarW = 0;
+    _prevCh1BarW = 0;
+    _prevCh2BarW = 0;
 
     tft.fillScreen(COLOR_BG);
     drawHomeScreenLayout();
@@ -129,11 +134,12 @@ void TftDisplay::setScreenMode(DisplayScreenMode mode) {
 
     if (_currentMode == SCREEN_HOME) {
         _prevInBarW = 0;
-        _prevSubBarW = 0;
-        _prevMidBarW = 0;
-        _prevXover = -1.0f;
-        _prevSubGain = -999.0f;
-        _prevMidGain = -999.0f;
+        _prevCh1BarW = 0;
+        _prevCh2BarW = 0;
+        _prevCh1Gain = -999.0f;
+        _prevCh2Gain = -999.0f;
+        _prevCh1Hpf = -1.0f;
+        _prevCh2Hpf = -1.0f;
         _prevPreset = 255;
         drawHomeScreenLayout();
     } else {
@@ -145,13 +151,13 @@ void TftDisplay::drawHeader(const char* title, uint16_t bg_color, uint16_t text_
     tft.fillRect(0, 0, 160, 14, bg_color);
     tft.setTextSize(1);
     tft.setTextColor(text_color);
-    tft.setCursor(6, 3);
+    tft.setCursor(4, 3);
     tft.print(title);
 }
 
 void TftDisplay::drawHomeScreenLayout() {
     // 1. Top Header Banner
-    drawHeader("S.NET MINI DLMS 2-WAY", COLOR_HEADER_BG, COLOR_ACCENT);
+    drawHeader("S.NET DLMS - DUAL DAC", COLOR_HEADER_BG, COLOR_ACCENT);
 
     // 2. VU Meter Section Labels (Y: 18 - 58)
     tft.setTextSize(1);
@@ -161,10 +167,10 @@ void TftDisplay::drawHomeScreenLayout() {
     tft.print("IN ");
 
     tft.setCursor(4, 30);
-    tft.print("SUB");
+    tft.print("CH1");
 
     tft.setCursor(4, 42);
-    tft.print("MID");
+    tft.print("CH2");
 
     // Static VU background troughs (dark grey frames)
     tft.drawRect(26, 17, 86, 9, COLOR_BOX_BORDER);
@@ -200,7 +206,6 @@ void TftDisplay::drawVuBar(int16_t x, int16_t y, int16_t w, int16_t h, float db,
     if (bar_w == prev_w) return;
 
     if (bar_w > prev_w) {
-        // Draw new segments from prev_w to bar_w
         for (int16_t px = prev_w; px < bar_w; px++) {
             uint16_t col;
             float seg_ratio = (float)px / (float)w;
@@ -210,7 +215,6 @@ void TftDisplay::drawVuBar(int16_t x, int16_t y, int16_t w, int16_t h, float db,
             tft.drawFastVLine(x + px, y, h, col);
         }
     } else {
-        // Clear falling segments
         tft.fillRect(x + bar_w, y, prev_w - bar_w, h, COLOR_BG);
     }
 
@@ -223,52 +227,53 @@ void TftDisplay::updateHomeDynamicData() {
 
     // 1. Update VU Bars (Inner dimensions 84 x 7)
     drawVuBar(27, 18, 84, 7, vu.in_peak_db,  _prevInBarW);
-    drawVuBar(27, 30, 84, 7, vu.sub_peak_db, _prevSubBarW);
-    drawVuBar(27, 42, 84, 7, vu.mid_peak_db, _prevMidBarW);
+    drawVuBar(27, 30, 84, 7, vu.ch1_peak_db, _prevCh1BarW);
+    drawVuBar(27, 42, 84, 7, vu.ch2_peak_db, _prevCh2BarW);
 
     // 2. VU Numerical Readout / Clip Indicator
     tft.setTextSize(1);
 
-    // Sub Clip / Level
+    // CH1 Clip / Level
     tft.setCursor(116, 30);
-    if (vu.sub_clip) {
+    if (vu.ch1_clip) {
         tft.setTextColor(COLOR_RED, COLOR_BG);
         tft.print("CLIP ");
     } else {
         tft.setTextColor(COLOR_TEXT_BRT, COLOR_BG);
-        char subBuf[8];
-        snprintf(subBuf, sizeof(subBuf), "%+3.0fdB", vu.sub_peak_db);
-        tft.print(subBuf);
+        char b1[8];
+        snprintf(b1, sizeof(b1), "%+3.0fdB", vu.ch1_peak_db);
+        tft.print(b1);
     }
 
-    // Mid Clip / Level
+    // CH2 Clip / Level
     tft.setCursor(116, 42);
-    if (vu.mid_clip) {
+    if (vu.ch2_clip) {
         tft.setTextColor(COLOR_RED, COLOR_BG);
         tft.print("CLIP ");
     } else {
         tft.setTextColor(COLOR_TEXT_BRT, COLOR_BG);
-        char midBuf[8];
-        snprintf(midBuf, sizeof(midBuf), "%+3.0fdB", vu.mid_peak_db);
-        tft.print(midBuf);
+        char b2[8];
+        snprintf(b2, sizeof(b2), "%+3.0fdB", vu.ch2_peak_db);
+        tft.print(b2);
     }
 
     // 3. System Information Box lines (only redraw when changed)
-    if (fabsf(cfg.xover_freq - _prevXover) > 0.5f) {
-        _prevXover = cfg.xover_freq;
+    if (fabsf(cfg.ch1.gain_db - _prevCh1Gain) > 0.2f || fabsf(cfg.ch2.gain_db - _prevCh2Gain) > 0.2f) {
+        _prevCh1Gain = cfg.ch1.gain_db;
+        _prevCh2Gain = cfg.ch2.gain_db;
         tft.fillRect(6, 66, 148, 9, COLOR_BG);
         tft.setCursor(6, 66);
-        tft.setTextColor(COLOR_ACCENT, COLOR_BG);
-        tft.printf("X-OVER: %4.0fHz (%udB LR)", cfg.xover_freq, cfg.xover_slope);
+        tft.setTextColor(COLOR_TEXT_BRT, COLOR_BG);
+        tft.printf("CH1:%+4.1fdB | CH2:%+4.1fdB", cfg.ch1.gain_db, cfg.ch2.gain_db);
     }
 
-    if (fabsf(cfg.sub.gain_db - _prevSubGain) > 0.2f || fabsf(cfg.mid.gain_db - _prevMidGain) > 0.2f) {
-        _prevSubGain = cfg.sub.gain_db;
-        _prevMidGain = cfg.mid.gain_db;
+    if (fabsf(cfg.ch1.hpf.freq - _prevCh1Hpf) > 0.5f || fabsf(cfg.ch2.hpf.freq - _prevCh2Hpf) > 0.5f) {
+        _prevCh1Hpf = cfg.ch1.hpf.freq;
+        _prevCh2Hpf = cfg.ch2.hpf.freq;
         tft.fillRect(6, 77, 148, 9, COLOR_BG);
         tft.setCursor(6, 77);
-        tft.setTextColor(COLOR_TEXT_BRT, COLOR_BG);
-        tft.printf("S:%+4.1fdB | M:%+4.1fdB", cfg.sub.gain_db, cfg.mid.gain_db);
+        tft.setTextColor(COLOR_ACCENT, COLOR_BG);
+        tft.printf("HPF1:%4.0fHz | HPF2:%4.0fHz", cfg.ch1.hpf.freq, cfg.ch2.hpf.freq);
     }
 
     uint8_t curSlot = presetsManager.getCurrentSlot();
@@ -315,41 +320,52 @@ void TftDisplay::drawMenuScreen() {
 
         tft.setTextSize(1);
         tft.setCursor(4, y + 3);
-
         tft.print(isSelected ? (_inEditMode ? "* " : "> ") : "  ");
 
         switch (item_idx) {
             case 0:
-                tft.printf("X-OVER FREQ: %4.0f Hz", cfg.xover_freq);
+                tft.printf("CH1 GAIN   : %+4.1f dB", cfg.ch1.gain_db);
                 break;
             case 1:
-                tft.printf("SLOPE      : %2u dB LR", cfg.xover_slope);
+                tft.printf("CH2 GAIN   : %+4.1f dB", cfg.ch2.gain_db);
                 break;
             case 2:
-                tft.printf("SUB GAIN   : %+4.1f dB", cfg.sub.gain_db);
+                tft.printf("CH1 HPF    : %4.0f Hz", cfg.ch1.hpf.freq);
                 break;
             case 3:
-                tft.printf("MID GAIN   : %+4.1f dB", cfg.mid.gain_db);
+                tft.printf("CH1 LPF    : %4.0f Hz", cfg.ch1.lpf.freq);
                 break;
             case 4:
-                tft.printf("MASTER VOL : %+4.0f dB", cfg.master_gain_db);
+                tft.printf("CH2 HPF    : %4.0f Hz", cfg.ch2.hpf.freq);
                 break;
             case 5:
-                tft.printf("SUB PHASE  : %s", cfg.sub.polarity_inverted ? "INVERT 180" : "NORMAL");
+                tft.printf("CH2 LPF    : %4.0f Hz", cfg.ch2.lpf.freq);
                 break;
             case 6:
-                tft.printf("MID PHASE  : %s", cfg.mid.polarity_inverted ? "INVERT 180" : "NORMAL");
+                tft.printf("CH1 PHASE  : %s", cfg.ch1.polarity_inverted ? "INVERT 180" : "NORMAL");
                 break;
             case 7:
-                tft.printf("MUTE       : %s", cfg.mute ? "MUTED [ON]" : "UNMUTED");
+                tft.printf("CH2 PHASE  : %s", cfg.ch2.polarity_inverted ? "INVERT 180" : "NORMAL");
                 break;
             case 8:
-                tft.printf("LOAD PRESET: Slot %u", presetsManager.getCurrentSlot());
+                tft.printf("CH1 MUTE   : %s", cfg.ch1.mute ? "MUTED [ON]" : "UNMUTED");
                 break;
             case 9:
-                tft.printf("SAVE PRESET: [KLIK]");
+                tft.printf("CH2 MUTE   : %s", cfg.ch2.mute ? "MUTED [ON]" : "UNMUTED");
                 break;
             case 10:
+                tft.printf("MASTER VOL : %+4.0f dB", cfg.master_gain_db);
+                break;
+            case 11:
+                tft.printf("ALL MUTE   : %s", cfg.mute ? "MUTED [ON]" : "UNMUTED");
+                break;
+            case 12:
+                tft.printf("LOAD PRESET: Slot %u", presetsManager.getCurrentSlot());
+                break;
+            case 13:
+                tft.printf("SAVE PRESET: [KLIK]");
+                break;
+            case 14:
                 tft.printf("< KEMBALI KE VU METER >");
                 break;
         }
@@ -365,66 +381,82 @@ void TftDisplay::drawMenuScreen() {
     }
 }
 
+static float stepFrequency(float current_freq, int32_t delta) {
+    int current_idx = 0;
+    float min_diff = 99999.0f;
+    for (size_t i = 0; i < FREQ_STEPS_COUNT; i++) {
+        float diff = fabsf(FREQ_STEPS[i] - current_freq);
+        if (diff < min_diff) {
+            min_diff = diff;
+            current_idx = (int)i;
+        }
+    }
+    current_idx += delta;
+    if (current_idx < 0) current_idx = 0;
+    if (current_idx >= (int)FREQ_STEPS_COUNT) current_idx = (int)FREQ_STEPS_COUNT - 1;
+    return FREQ_STEPS[current_idx];
+}
+
 void TftDisplay::applyMenuEdit(int32_t delta) {
     DspConfig cfg = dspEngine.getConfig();
 
     switch (_menuIndex) {
-        case 0: { // X-OVER FREQ
-            int current_idx = 6;
-            float min_diff = 99999.0f;
-            for (size_t i = 0; i < FREQ_STEPS_COUNT; i++) {
-                float diff = fabsf(FREQ_STEPS[i] - cfg.xover_freq);
-                if (diff < min_diff) {
-                    min_diff = diff;
-                    current_idx = (int)i;
-                }
-            }
-            current_idx += delta;
-            if (current_idx < 0) current_idx = 0;
-            if (current_idx >= (int)FREQ_STEPS_COUNT) current_idx = (int)FREQ_STEPS_COUNT - 1;
-            dspEngine.setCrossover(FREQ_STEPS[current_idx], cfg.xover_slope);
+        case 0: { // CH1 GAIN
+            float g = cfg.ch1.gain_db + (float)delta * 0.5f;
+            dspEngine.setCh1Gain(g);
             break;
         }
-        case 1: { // X-OVER SLOPE
-            uint8_t slope = cfg.xover_slope;
-            if (delta > 0) {
-                if (slope == 12) slope = 24;
-                else if (slope == 24) slope = 48;
-            } else if (delta < 0) {
-                if (slope == 48) slope = 24;
-                else if (slope == 24) slope = 12;
-            }
-            dspEngine.setCrossover(cfg.xover_freq, slope);
+        case 1: { // CH2 GAIN
+            float g = cfg.ch2.gain_db + (float)delta * 0.5f;
+            dspEngine.setCh2Gain(g);
             break;
         }
-        case 2: { // SUB GAIN
-            float g = cfg.sub.gain_db + (float)delta * 0.5f;
-            dspEngine.setSubGain(g);
+        case 2: { // CH1 HPF
+            float f = stepFrequency(cfg.ch1.hpf.freq, delta);
+            dspEngine.setCh1Hpf(true, f, cfg.ch1.hpf.slope);
             break;
         }
-        case 3: { // MID GAIN
-            float g = cfg.mid.gain_db + (float)delta * 0.5f;
-            dspEngine.setMidGain(g);
+        case 3: { // CH1 LPF
+            float f = stepFrequency(cfg.ch1.lpf.freq, delta);
+            dspEngine.setCh1Lpf(true, f, cfg.ch1.lpf.slope);
             break;
         }
-        case 4: { // MASTER VOL
+        case 4: { // CH2 HPF
+            float f = stepFrequency(cfg.ch2.hpf.freq, delta);
+            dspEngine.setCh2Hpf(true, f, cfg.ch2.hpf.slope);
+            break;
+        }
+        case 5: { // CH2 LPF
+            float f = stepFrequency(cfg.ch2.lpf.freq, delta);
+            dspEngine.setCh2Lpf(true, f, cfg.ch2.lpf.slope);
+            break;
+        }
+        case 6: { // CH1 PHASE
+            dspEngine.setCh1Invert(!cfg.ch1.polarity_inverted);
+            break;
+        }
+        case 7: { // CH2 PHASE
+            dspEngine.setCh2Invert(!cfg.ch2.polarity_inverted);
+            break;
+        }
+        case 8: { // CH1 MUTE
+            dspEngine.setCh1Mute(!cfg.ch1.mute);
+            break;
+        }
+        case 9: { // CH2 MUTE
+            dspEngine.setCh2Mute(!cfg.ch2.mute);
+            break;
+        }
+        case 10: { // MASTER VOL
             float g = cfg.master_gain_db + (float)delta * 1.0f;
             dspEngine.setMasterGain(g);
             break;
         }
-        case 5: { // SUB PHASE
-            dspEngine.setSubInvert(!cfg.sub.polarity_inverted);
-            break;
-        }
-        case 6: { // MID PHASE
-            dspEngine.setMidInvert(!cfg.mid.polarity_inverted);
-            break;
-        }
-        case 7: { // MUTE
+        case 11: { // ALL MUTE
             dspEngine.setMasterMute(!cfg.mute);
             break;
         }
-        case 8: { // LOAD PRESET
+        case 12: { // LOAD PRESET
             uint8_t cur = presetsManager.getCurrentSlot();
             int new_slot = (int)cur + delta;
             if (new_slot < 1) new_slot = 1;
@@ -437,8 +469,8 @@ void TftDisplay::applyMenuEdit(int32_t delta) {
             }
             break;
         }
-        case 9:
-        case 10:
+        case 13:
+        case 14:
             break;
     }
 
@@ -446,12 +478,12 @@ void TftDisplay::applyMenuEdit(int32_t delta) {
 }
 
 void TftDisplay::executeMenuSelect() {
-    if (_menuIndex == 10) { // BACK TO HOME
+    if (_menuIndex == 14) { // BACK TO HOME
         setScreenMode(SCREEN_HOME);
         return;
     }
 
-    if (_menuIndex == 9) { // SAVE TO NVS
+    if (_menuIndex == 13) { // SAVE TO NVS
         DspConfig currentCfg = dspEngine.getConfig();
         presetsManager.savePreset(presetsManager.getCurrentSlot(), currentCfg);
 
@@ -511,6 +543,13 @@ void TftDisplay::handleEncoder(int32_t delta, bool clicked, bool longPressed) {
 
 void TftDisplay::update() {
     if (!_isInitialized) return;
+
+    // Pastikan backlight pin selalu HIGH
+    digitalWrite(8, HIGH);
+    digitalWrite(13, HIGH);
+    if (TFT_BL_PIN >= 0 && TFT_BL_PIN != 8 && TFT_BL_PIN != 13) {
+        digitalWrite(TFT_BL_PIN, HIGH);
+    }
 
     unsigned long now = millis();
 

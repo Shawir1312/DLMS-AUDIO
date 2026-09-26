@@ -82,8 +82,8 @@ void setup() {
                   I2S_RX_BCK_PIN, I2S_RX_LRCK_PIN, I2S_RX_DATA_PIN);
     Serial.printf(" I2S TX (to DACs): BCK=Pin %d, WS=Pin %d, DIN=Pin %d\n", 
                   I2S_TX_BCK_PIN, I2S_TX_LRCK_PIN, I2S_TX_DATA_PIN);
-    Serial.println(" DAC Channel L   : WAY 1 (SUBWOOFER / LOW)");
-    Serial.println(" DAC Channel R   : WAY 2 (MID / HIGH)");
+    Serial.println(" DAC Channel L   : CHANNEL 1 (DAC 1 - Fully Independent DSP)");
+    Serial.println(" DAC Channel R   : CHANNEL 2 (DAC 2 - Fully Independent DSP)");
     Serial.printf(" Sample Rate     : %u Hz\n", dspEngine.getSampleRate());
     Serial.println("==================================================");
     Serial.println("System Running. Audio DSP on Core 1, Web/UI on Core 0.");

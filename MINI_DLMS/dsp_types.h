@@ -59,56 +59,76 @@ struct LimiterConfig {
     float release_ms;   // 10.0 to 1000.0 ms
 };
 
-// Single Channel Configuration (Way 1 Sub, Way 2 Mid/High)
+// Single Channel Configuration (Independent DSP for each PCM5102 DAC Output)
 struct ChannelConfig {
     float gain_db;           // -60.0 to +12.0 dB (channel volume)
     bool mute;               // true/false
     bool polarity_inverted;  // false = Normal, true = Inverted (180 deg)
     float delay_ms;          // 0.0 to 50.0 ms
-    HpfConfig hpf;           // High Pass Filter
-    LpfConfig lpf;           // Low Pass Filter
+    HpfConfig hpf;           // High Pass Filter (20Hz - 20kHz, 12/24/48dB)
+    LpfConfig lpf;           // Low Pass Filter (20Hz - 20kHz, 12/24/48dB)
     LimiterConfig limiter;   // Output Limiter
+    PeqBandConfig peq[3];    // 3-Band Parametric EQ dedicated to this channel
 };
 
-// Full DSP Engine Parameters
+// Full DSP Engine Parameters for 2 Independent DAC Channels
 struct DspConfig {
     float master_gain_db;    // -60.0 to +12.0 dB (default 0 dB)
     bool mute;               // true/false
     bool polarity_inverted;  // false = Normal, true = Inverted
 
-    // 2-Way Crossover Global Settings
-    bool xover_linked;       // true = sub LPF and mid HPF track xover_freq
-    float xover_freq;        // 40.0 to 5000.0 Hz (default 100 Hz)
+    // Optional 2-Way Crossover Linking (convenience)
+    bool xover_linked;       // true = ch1 LPF and ch2 HPF track xover_freq
+    float xover_freq;        // 20.0 to 20000.0 Hz (default 100 Hz)
     uint8_t xover_slope;     // 12, 24, or 48 dB/oct
 
-    // Channel 1 (LEFT): SUBWOOFER / LOW
-    ChannelConfig sub;
+    // Channel 1: DAC 1 (LEFT Output) - Independent DSP Pipeline
+    union {
+        ChannelConfig ch1;
+        ChannelConfig sub;   // Legacy alias
+    };
 
-    // Channel 2 (RIGHT): MID / HIGH
-    ChannelConfig mid;
+    // Channel 2: DAC 2 (RIGHT Output) - Independent DSP Pipeline
+    union {
+        ChannelConfig ch2;
+        ChannelConfig mid;   // Legacy alias
+    };
 
-    // 5-Band Parametric EQ (Bands 0-1 for Sub, 2-4 for Mid)
-    PeqBandConfig peq[5];
+    // 6-band PEQ mirror (bands 0-2 for CH1, bands 3-5 for CH2)
+    PeqBandConfig peq[6];
 
-    // Compatibility fields with previous 1-ch version
+    // Compatibility fields with legacy code
     HpfConfig hpf;
     LpfConfig lpf;
     DelayConfig delay;
     LimiterConfig limiter;
 };
 
-// Real-time VU Meter and Telemetry Data (Multi-Channel 2-Way)
+// Real-time VU Meter and Telemetry Data (Independent 2-Channel DAC)
 struct VuMeterData {
     float in_peak_db;     // Input Peak in dBFS (-60 to 0 dB)
     float in_rms_db;      // Input RMS in dBFS (-60 to 0 dB)
-    float sub_peak_db;    // Sub Out Peak in dBFS (-60 to 0 dB)
-    float sub_rms_db;     // Sub Out RMS in dBFS (-60 to 0 dB)
-    float mid_peak_db;    // Mid Out Peak in dBFS (-60 to 0 dB)
-    float mid_rms_db;     // Mid Out RMS in dBFS (-60 to 0 dB)
+    
+    // Channel 1 (DAC 1 / Left)
+    float ch1_peak_db;    // CH1 Peak in dBFS (-60 to 0 dB)
+    float ch1_rms_db;     // CH1 RMS in dBFS (-60 to 0 dB)
+    bool  ch1_clip;       // CH1 clip flag
+
+    // Channel 2 (DAC 2 / Right)
+    float ch2_peak_db;    // CH2 Peak in dBFS (-60 to 0 dB)
+    float ch2_rms_db;     // CH2 RMS in dBFS (-60 to 0 dB)
+    bool  ch2_clip;       // CH2 clip flag
+
     float out_peak_db;    // Max output peak
     float out_rms_db;     // Max output rms
     float limiter_gr_db;  // Limiter Gain Reduction in dB (0 to -30 dB)
-    bool clip;            // General clip flag
-    bool sub_clip;        // Sub channel clip
-    bool mid_clip;        // Mid channel clip
+    bool  clip;           // General clip flag
+
+    // Legacy aliases
+    float sub_peak_db;
+    float sub_rms_db;
+    float mid_peak_db;
+    float mid_rms_db;
+    bool  sub_clip;
+    bool  mid_clip;
 };

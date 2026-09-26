@@ -36,13 +36,14 @@ private:
 
     // Previous VU meter drawing cache (for flicker-free partial updates)
     int16_t _prevInBarW;
-    int16_t _prevSubBarW;
-    int16_t _prevMidBarW;
-    bool    _prevSubClip;
-    bool    _prevMidClip;
-    float   _prevXover;
-    float   _prevSubGain;
-    float   _prevMidGain;
+    int16_t _prevCh1BarW;
+    int16_t _prevCh2BarW;
+    bool    _prevCh1Clip;
+    bool    _prevCh2Clip;
+    float   _prevCh1Gain;
+    float   _prevCh2Gain;
+    float   _prevCh1Hpf;
+    float   _prevCh2Hpf;
     uint8_t _prevPreset;
 
     void drawHomeScreenLayout();
