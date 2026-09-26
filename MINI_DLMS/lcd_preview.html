@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOFGAM SS - 1.8" TFT LCD Simulator (128x160 ST7735)</title>
+<style>
+:root {
+  --bg-deep: #050811;
+  --rack-bg: #0c1322;
+  --rack-border: #1a2744;
+  --cyan-neon: #00d2ff;
+  --cyan-dim: #007a99;
+  --green-neon: #00e676;
+  --yellow-amber: #ffd600;
+  --red-clip: #ff1744;
+  --text-main: #f8fafc;
+  --text-dim: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+  user-select: none;
+}
+
+body {
+  background: radial-gradient(circle at 50% 20%, #0d1b33 0%, var(--bg-deep) 100%);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* Header */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 920px;
+  margin-bottom: 16px;
+}
+.brand-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--cyan-neon);
+  letter-spacing: 1px;
+  text-shadow: 0 0 12px rgba(0, 210, 255, 0.5);
+}
+.brand-title span {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-left: 8px;
+}
+
+/* 19" Rack Module Chassis */
+.rack-unit {
+  width: 100%;
+  max-width: 920px;
+  background: linear-gradient(180deg, #162035 0%, #0e1526 100%);
+  border: 2px solid var(--rack-border);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* Panel Layout: Display + Physical Rotary Knob Controller */
+.panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 310px;
+  gap: 24px;
+  width: 100%;
+  align-items: center;
+}
+
+/* 1.8" TFT Screen Bezel */
+.lcd-bezel {
+  background: #03060c;
+  border: 3px solid #1a2b48;
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9), 0 8px 24px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.bezel-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--cyan-dim);
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+/* Actual Canvas Display (Resolution 160x128 scaled 3.2x = 512x409.6) */
+#tftCanvas {
+  width: 512px;
+  height: 410px;
+  background: #000000;
+  border: 1px solid #00d2ff33;
+  border-radius: 4px;
+  image-rendering: pixelated;
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+  display: block;
+}
+
+/* Rotary Encoder Controls */
+.controls-card {
+  background: #090f1d;
+  border: 1px solid var(--rack-border);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.knob-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cyan-neon);
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+/* Physical Rotary Knob (EC11) */
+.knob-housing {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #25334d 0%, #0d1526 80%);
+  border: 4px solid #33486c;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.8), inset 0 2px 4px rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+.knob-housing:active {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.9), inset 0 3px 6px rgba(0,0,0,0.6);
+  transform: scale(0.97);
+}
+
+.knob-cap {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #1b263b, #2c3e60, #1b263b, #2c3e60, #1b263b);
+  border: 2px solid #4a638e;
+  position: relative;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+  transition: transform 0.05s linear;
+}
+.knob-notch {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 14px;
+  background: var(--cyan-neon);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--cyan-neon);
+}
+
+.knob-btn-hint {
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Action Buttons */
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.btn {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #1e3156;
+  background: #101c33;
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.btn:hover {
+  background: #17284a;
+  border-color: var(--cyan-neon);
+  color: var(--cyan-neon);
+  box-shadow: 0 0 10px rgba(0,210,255,0.2);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn-primary {
+  grid-column: span 2;
+  background: linear-gradient(135deg, #0077ff 0%, #00d2ff 100%);
+  color: #030814;
+  border: none;
+  font-weight: 700;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+  color: #000;
+}
+
+/* Quick Navigator Links */
+.footer-links {
+  margin-top: 20px;
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+}
+.footer-links a {
+  color: var(--cyan-neon);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+.footer-links a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* Screen Selector Pills */
+.screen-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  max-width: 920px;
+  margin-top: 14px;
+  justify-content: center;
+}
+.screen-pill {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #1c2b48;
+  background: #0d1629;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.screen-pill:hover, .screen-pill.active {
+  border-color: var(--cyan-neon);
+  color: var(--cyan-neon);
+  background: #13223f;
+}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <div class="brand-title">SOFGAM SS<span>by Shawir &bull; LCD 128x160 (Persis Seperti Web)</span></div>
+  <div class="footer-links">
+    <a href="preview.html">&larr; Buka Web UI Lengkap</a>
+  </div>
+</div>
+
+<div class="rack-unit">
+  <div class="panel-grid">
+    <!-- LCD Screen -->
+    <div class="lcd-bezel">
+      <div class="bezel-header">
+        <span>SOFGAM SS &bull; DSP CORE</span>
+        <span>160x128 LANDSCAPE</span>
+      </div>
+      <!-- Virtual Canvas 160x128 -->
+      <canvas id="tftCanvas" width="160" height="128"></canvas>
+    </div>
+
+    <!-- Rotary Encoder (EC11) -->
+    <div class="controls-card">
+      <div class="knob-label">KNOB ENCODER (EC11)</div>
+
+      <div class="knob-housing" id="knobHousing" title="Klik tombol atau putar">
+        <div class="knob-cap" id="knobCap">
+          <div class="knob-notch"></div>
+        </div>
+      </div>
+
+      <div class="knob-btn-hint">KLIK: PILIH / EDIT NILAI<br>PUTAR: NAVIGASI / ATUR<br>TAHAN 0.6s: LOMPAT KE HOME</div>
+
+      <div class="btn-grid">
+        <button class="btn" id="btnRotLeft">&larr; PUTAR KIRI</button>
+        <button class="btn" id="btnRotRight">PUTAR KANAN &rarr;</button>
+        <button class="btn btn-primary" id="btnClick">KLIK TOMBOL (SELECT/EDIT)</button>
+        <button class="btn" id="btnLongPress" style="grid-column: span 2;">TAHAN TOMBOL (JUMP HOME)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Screen Quick Switchers -->
+<div class="screen-pills">
+  <div class="screen-pill active" onclick="switchView('HOME')">🏠 Home</div>
+  <div class="screen-pill" onclick="switchView('MENU')">⌗ Menu Grid</div>
+  <div class="screen-pill" onclick="switchView('GAIN')">🎚 Gain</div>
+  <div class="screen-pill" onclick="switchView('HPF')">⤓ HPF</div>
+  <div class="screen-pill" onclick="switchView('LPF')">⤒ LPF</div>
+  <div class="screen-pill" onclick="switchView('DELAY')">🕒 Delay</div>
+  <div class="screen-pill" onclick="switchView('PEQ')">📈 PEQ Curve</div>
+  <div class="screen-pill" onclick="switchView('LIMITER')">🛡 Limiter</div>
+  <div class="screen-pill" onclick="switchView('PRESET')">📄 Preset</div>
+  <div class="screen-pill" onclick="switchView('STATUS')">⚙ Status</div>
+  <div class="screen-pill" onclick="switchView('ABOUT')">ℹ About</div>
+  <div class="screen-pill" onclick="switchView('SPLASH')">✨ Boot Splash</div>
+</div>
+
+<script>
+// Canvas & Context
+const canvas = document.getElementById('tftCanvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+// Cyber Theme Colors (RGB565 equivalent)
+const C_BG = "#000000";
+const C_NAVY = "#060e1f";
+const C_CARD = "#081226";
+const C_CYAN = "#00d2ff";
+const C_CYAN_DIM = "#007a99";
+const C_WHITE = "#ffffff";
+const C_DIM = "#94a3b8";
+const C_GREEN = "#10b981";
+const C_YELLOW = "#f59e0b";
+const C_RED = "#ef4444";
+const C_PURPLE = "#9333ea";
+const C_BORDER = "#16233d";
+const C_BORDER_BRT = "#00d2ff55";
+const C_SEL = "#027373";
+const C_EDIT = "#b45309";
+
+// Active Screen
+let currentScreen = "HOME"; // "SPLASH", "HOME", "MENU", "GAIN", "HPF", "LPF", "DELAY", "PEQ", "LIMITER", "PRESET", "STATUS", "ABOUT"
+let cursorIndex = 0;
+let inEditMode = false;
+let knobRotation = 0;
+
+// DSP Parameters State (matching Web UI)
+const dsp = {
+  masterGain: 0.0,
+  ch1Gain: 0.0,
+  ch2Gain: 0.0,
+  out1Gain: 0.0,
+  out2Gain: 0.0,
+  out3Gain: 0.0,
+  out4Gain: 0.0,
+  inL_db: -18.7,
+  inR_db: -18.2,
+  out1_db: -20.5,
+  out2_db: -20.1,
+  out3_db: -22.1,
+  out4_db: -26.5,
+  out1Mute: false,
+  out2Mute: false,
+  out3Mute: false,
+  out4Mute: false,
+  hpfEn: true,
+  hpfFreq: 80.0,
+  hpfSlope: 24,
+  lpfEn: true,
+  lpfFreq: 8000.0,
+  lpfSlope: 24,
+  delay1: 2.5,
+  delay2: 2.5,
+  delay3: 3.0,
+  delay4: 3.0,
+  peqBand: 1,
+  peqFreq: 100.0,
+  peqGain: 2.0,
+  peqQ: 1.0,
+  peqEn: true,
+  limEn: true,
+  limTh: -1.0,
+  limAtk: 10.0,
+  limRel: 100.0,
+  preset: 1
+};
+
+// Simulate Audio
+function simulateAudio() {
+  const t = Date.now() * 0.006;
+  const sig = Math.sin(t) * 0.5 + Math.sin(t * 1.8) * 0.3;
+  dsp.inL_db = -19.0 + sig * 12;
+  dsp.inR_db = -20.5 + Math.cos(t * 1.4) * 10;
+  dsp.out1_db = dsp.inL_db + dsp.out1Gain;
+  dsp.out2_db = dsp.inL_db + dsp.out2Gain;
+  dsp.out3_db = dsp.inR_db + dsp.out3Gain;
+  dsp.out4_db = dsp.inR_db + dsp.out4Gain;
+}
+
+// Pixel Text Helper
+function text(str, x, y, color = C_WHITE, size = 1) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `${size === 2 ? 14 : 9}px "Courier New", Courier, monospace`;
+  ctx.textBaseline = "top";
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+
+// Rounded Card Helper
+function drawCard(x, y, w, h, borderCol = C_BORDER, bgCol = C_CARD) {
+  ctx.fillStyle = bgCol;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = borderCol;
+  ctx.strokeRect(x, y, w, h);
+}
+
+// Common Header (Exact Web UI Top Bar)
+function drawWebHeader(subTitle = "") {
+  ctx.fillStyle = C_NAVY;
+  ctx.fillRect(0, 0, 160, 13);
+  ctx.fillStyle = C_CYAN_DIM;
+  ctx.fillRect(0, 13, 160, 1);
+
+  text("SOFGAM SS", 3, 2, C_CYAN);
+  if (subTitle) {
+    text(subTitle, 68, 2, C_DIM);
+  } else {
+    text("48k", 98, 2, C_DIM);
+    ctx.fillStyle = C_GREEN;
+    ctx.beginPath();
+    ctx.arc(126, 6, 2, 0, Math.PI * 2);
+    ctx.fill();
+    text("RUN", 131, 2, C_GREEN);
+  }
+}
+
+// Segmented LED Meter (Exact Web UI Gradient)
+function drawLedMeter(x, y, w, h, db, segments = 10) {
+  const norm = Math.max(0, Math.min(1, (db + 40) / 40));
+  const activeCount = Math.round(norm * segments);
+  const segW = Math.floor(w / segments) - 1;
+
+  for (let s = 0; s < segments; s++) {
+    const sx = x + s * (segW + 1);
+    if (s < activeCount) {
+      const ratio = s / segments;
+      if (ratio < 0.65) ctx.fillStyle = C_GREEN;
+      else if (ratio < 0.85) ctx.fillStyle = C_YELLOW;
+      else ctx.fillStyle = C_RED;
+    } else {
+      ctx.fillStyle = "#0c1524"; // Dark unlit segment
+    }
+    ctx.fillRect(sx, y, segW, h);
+  }
+}
+
+// =============================================================================
+// SCREEN 1: HOME (Exact match to home_screen_1790463527267.png)
+// =============================================================================
+function renderHomeScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+
+  drawWebHeader();
+
+  // 1. INPUT CARD (Left, X: 2, W: 63, H: 45)
+  drawCard(2, 15, 63, 44, C_BORDER, C_CARD);
+  text("INPUT (ADC)", 4, 17, C_CYAN);
+
+  // L
+  text("L", 4, 28, C_DIM);
+  drawLedMeter(13, 29, 30, 4, dsp.inL_db, 8);
+  text(dsp.inL_db.toFixed(0), 46, 28, C_DIM);
+
+  // R
+  text("R", 4, 39, C_DIM);
+  drawLedMeter(13, 40, 30, 4, dsp.inR_db, 8);
+  text(dsp.inR_db.toFixed(0), 46, 39, C_DIM);
+
+  // 2. OUTPUT CARD (Right, X: 67, W: 91, H: 45)
+  drawCard(67, 15, 91, 44, C_BORDER, C_CARD);
+  text("OUTPUT (4CH)", 70, 17, C_CYAN);
+
+  const outDbs = [dsp.out1_db, dsp.out2_db, dsp.out3_db, dsp.out4_db];
+  for (let i = 0; i < 4; i++) {
+    const oy = 26 + i * 8;
+    text((i + 1).toString(), 69, oy - 1, C_CYAN);
+    drawLedMeter(78, oy, 46, 4, outDbs[i], 12);
+    text(outDbs[i].toFixed(0), 128, oy - 1, C_DIM);
+  }
+
+  // 3. PRESET & QUICK PARAMS CARD (Y: 61, H: 22)
+  drawCard(2, 61, 156, 23, C_BORDER, C_CARD);
+  text(`PRESET <0${dsp.preset} Default>`, 5, 63, C_CYAN);
+  text(`G:${(dsp.out1Gain >= 0 ? "+" : "") + dsp.out1Gain.toFixed(0)}dB H:${dsp.hpfFreq.toFixed(0)} L:${(dsp.lpfFreq/1000).toFixed(1)}k EQ:${dsp.peqEn?'ON':'--'} LIM:${dsp.limEn?'ON':'--'}`, 5, 73, C_WHITE);
+
+  // 4. DIAGNOSTIC BADGES ROW (Y: 86, H: 11)
+  const pills = ["ADC:OK", "DSP:RUN", "DAC1:OK", "DAC2:OK", "42'C"];
+  let px = 2;
+  for (const p of pills) {
+    ctx.fillStyle = "#0c182c";
+    ctx.fillRect(px, 86, 29, 10);
+    ctx.strokeStyle = "#1b2c4c";
+    ctx.strokeRect(px, 86, 29, 10);
+    text(p, px + 2, 87, p.includes("42") ? C_DIM : C_GREEN);
+    px += 31;
+  }
+
+  // 5. BOTTOM DOCK (Exact Web UI Bottom Nav, Y: 99 to 127)
+  const dock = ["HOME", "GAIN", "HPF", "LPF", "DELAY", "PEQ", "MENU"];
+  const dockW = 21;
+  for (let d = 0; d < dock.length; d++) {
+    const dx = 3 + d * 22;
+    const isSel = (cursorIndex === d);
+    ctx.fillStyle = isSel ? C_CYAN : "#0a1324";
+    ctx.fillRect(dx, 99, dockW, 26);
+    ctx.strokeStyle = isSel ? C_WHITE : C_BORDER;
+    ctx.strokeRect(dx, 99, dockW, 26);
+
+    text(dock[d].substring(0, 3), dx + 2, 107, isSel ? "#000" : C_DIM);
+  }
+}
+
+// =============================================================================
+// SCREEN 2: MENU GRID (Exact match to menu_screen_1790463654872.png)
+// =============================================================================
+const MENU_TILES = [
+  { id: "HOME", name: "HOME" },
+  { id: "GAIN", name: "GAIN" },
+  { id: "HPF", name: "HPF" },
+  { id: "LPF", name: "LPF" },
+  { id: "DELAY", name: "DELAY" },
+  { id: "PEQ", name: "PEQ" },
+  { id: "LIMITER", name: "LIMIT" },
+  { id: "PRESET", name: "PRESET" },
+  { id: "STATUS", name: "STATUS" },
+  { id: "ABOUT", name: "ABOUT" }
+];
+
+function renderMenuGrid() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+
+  drawWebHeader("> MENU");
+
+  // 2x5 Grid of Tiles
+  const tileW = 28;
+  const tileH = 34;
+
+  for (let i = 0; i < MENU_TILES.length; i++) {
+    const col = i % 5;
+    const row = Math.floor(i / 5);
+    const tx = 4 + col * 31;
+    const ty = 18 + row * 40;
+    const isSel = (cursorIndex === i);
+
+    ctx.fillStyle = isSel ? "linear-gradient(135deg, #0077ff, #00d2ff)" : "#091222";
+    if (isSel) {
+      ctx.fillStyle = "#00d2ff";
+      ctx.fillRect(tx, ty, tileW, tileH);
+      ctx.strokeStyle = "#ffffff";
+    } else {
+      ctx.fillStyle = "#091222";
+      ctx.fillRect(tx, ty, tileW, tileH);
+      ctx.strokeStyle = "#1a2c4e";
+    }
+    ctx.strokeRect(tx, ty, tileW, tileH);
+
+    // Inner icon & label
+    text(MENU_TILES[i].name.substring(0, 4), tx + 2, ty + 12, isSel ? "#000000" : C_WHITE);
+  }
+
+  // Footer
+  ctx.fillStyle = C_NAVY;
+  ctx.fillRect(0, 114, 160, 14);
+  text("PUTAR: PILIH | TEKAN: BUKA", 6, 116, C_CYAN);
+}
+
+// =============================================================================
+// SCREEN 3: SETTING GAIN (gain_screen_active_1790463542975.png)
+// =============================================================================
+function renderGainScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("SETTING GAIN");
+
+  // Card 1: INPUT GAIN (Left)
+  drawCard(2, 16, 52, 60, cursorIndex === 0 ? C_CYAN : C_BORDER);
+  text("INPUT (ADC)", 4, 18, C_CYAN);
+  text(`L: ${(dsp.inL_db >= 0 ? "+" : "") + dsp.inL_db.toFixed(0)}dB`, 4, 32, C_WHITE);
+  text(`R: ${(dsp.inR_db >= 0 ? "+" : "") + dsp.inR_db.toFixed(0)}dB`, 4, 46, C_WHITE);
+
+  // Card 2: OUTPUT GAIN (Right)
+  drawCard(56, 16, 102, 60, cursorIndex >= 1 && cursorIndex <= 4 ? C_CYAN : C_BORDER);
+  text("OUTPUT GAIN (4 CH)", 58, 18, C_CYAN);
+  text(`OUT1: ${(dsp.out1Gain >= 0 ? "+" : "") + dsp.out1Gain.toFixed(1)}dB`, 58, 30, cursorIndex === 1 ? (inEditMode ? C_YELLOW : C_CYAN) : C_WHITE);
+  text(`OUT2: ${(dsp.out2Gain >= 0 ? "+" : "") + dsp.out2Gain.toFixed(1)}dB`, 58, 40, cursorIndex === 2 ? (inEditMode ? C_YELLOW : C_CYAN) : C_WHITE);
+  text(`OUT3: ${(dsp.out3Gain >= 0 ? "+" : "") + dsp.out3Gain.toFixed(1)}dB`, 58, 50, cursorIndex === 3 ? (inEditMode ? C_YELLOW : C_CYAN) : C_WHITE);
+  text(`OUT4: ${(dsp.out4Gain >= 0 ? "+" : "") + dsp.out4Gain.toFixed(1)}dB`, 58, 60, cursorIndex === 4 ? (inEditMode ? C_YELLOW : C_CYAN) : C_WHITE);
+
+  // Card 3: MUTES & POLARITY
+  drawCard(2, 78, 156, 26, cursorIndex === 5 ? C_CYAN : C_BORDER);
+  text("MUTE OUTPUT: [1] [2] [3] [4]  POL: [NORM]", 5, 85, C_DIM);
+
+  // Bottom Buttons: Kembali & Simpan
+  drawCard(2, 106, 50, 18, cursorIndex === 6 ? C_CYAN : C_BORDER, cursorIndex === 6 ? C_SEL : C_CARD);
+  text("< Kembali", 5, 110, C_WHITE);
+
+  drawCard(108, 106, 50, 18, cursorIndex === 7 ? C_CYAN : C_BORDER, "#0077ff");
+  text("Simpan", 115, 110, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 4: SETTING HPF (hpf_screen_1790463558223.png)
+// =============================================================================
+function renderHpfScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("SETTING HPF");
+
+  // 4 Channel Cards (2x2 Grid)
+  for (let ch = 0; ch < 4; ch++) {
+    const cx = (ch % 2 === 0) ? 2 : 82;
+    const cy = (ch < 2) ? 16 : 58;
+    const isSel = (cursorIndex === ch);
+
+    drawCard(cx, cy, 76, 38, isSel ? C_CYAN : C_BORDER);
+    text(`OUT ${ch + 1} [ON]`, cx + 4, cy + 3, isSel ? C_CYAN : C_WHITE);
+    text(`Freq : ${dsp.hpfFreq.toFixed(0)}Hz`, cx + 4, cy + 14, isSel && inEditMode ? C_YELLOW : C_DIM);
+    text(`Slope: ${dsp.hpfSlope}dB/o`, cx + 4, cy + 24, C_DIM);
+  }
+
+  // Footer Buttons
+  drawCard(2, 102, 50, 20, cursorIndex === 4 ? C_CYAN : C_BORDER, cursorIndex === 4 ? C_SEL : C_CARD);
+  text("< Kembali", 4, 107, C_WHITE);
+
+  drawCard(108, 102, 50, 20, cursorIndex === 5 ? C_CYAN : C_BORDER, "#0077ff");
+  text("Simpan", 114, 107, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 5: SETTING LPF (lpf_screen_1790463569258.png)
+// =============================================================================
+function renderLpfScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("SETTING LPF");
+
+  for (let ch = 0; ch < 4; ch++) {
+    const cx = (ch % 2 === 0) ? 2 : 82;
+    const cy = (ch < 2) ? 16 : 58;
+    const isSel = (cursorIndex === ch);
+
+    drawCard(cx, cy, 76, 38, isSel ? C_CYAN : C_BORDER);
+    text(`OUT ${ch + 1} [ON]`, cx + 4, cy + 3, isSel ? C_CYAN : C_WHITE);
+    text(`Freq : ${(dsp.lpfFreq/1000).toFixed(1)}k`, cx + 4, cy + 14, isSel && inEditMode ? C_YELLOW : C_DIM);
+    text(`Slope: ${dsp.lpfSlope}dB/o`, cx + 4, cy + 24, C_DIM);
+  }
+
+  drawCard(2, 102, 50, 20, cursorIndex === 4 ? C_CYAN : C_BORDER, cursorIndex === 4 ? C_SEL : C_CARD);
+  text("< Kembali", 4, 107, C_WHITE);
+
+  drawCard(108, 102, 50, 20, cursorIndex === 5 ? C_CYAN : C_BORDER, "#0077ff");
+  text("Simpan", 114, 107, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 6: SETTING DELAY (delay_screen_1790463581442.png)
+// =============================================================================
+function renderDelayScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("SETTING DELAY");
+
+  const delays = [dsp.delay1, dsp.delay2, dsp.delay3, dsp.delay4];
+  for (let ch = 0; ch < 4; ch++) {
+    const cx = (ch % 2 === 0) ? 2 : 82;
+    const cy = (ch < 2) ? 16 : 58;
+    const isSel = (cursorIndex === ch);
+
+    drawCard(cx, cy, 76, 38, isSel ? C_CYAN : C_BORDER);
+    text(`OUT ${ch + 1}`, cx + 4, cy + 3, isSel ? C_CYAN : C_WHITE);
+    text(`Dly: ${delays[ch].toFixed(1)} ms`, cx + 4, cy + 14, isSel && inEditMode ? C_YELLOW : C_CYAN);
+    text(`Dst: ${(delays[ch] * 0.343).toFixed(2)} m`, cx + 4, cy + 24, C_DIM);
+  }
+
+  drawCard(2, 102, 50, 20, cursorIndex === 4 ? C_CYAN : C_BORDER, cursorIndex === 4 ? C_SEL : C_CARD);
+  text("< Kembali", 4, 107, C_WHITE);
+
+  drawCard(108, 102, 50, 20, cursorIndex === 5 ? C_CYAN : C_BORDER, "#0077ff");
+  text("Simpan", 114, 107, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 7: SETTING PEQ (peq_screen_1790463594873.png) - REALTIME GRAPH
+// =============================================================================
+function renderPeqScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("SETTING PEQ");
+
+  // Visual EQ Curve Canvas Box (X: 2, Y: 15, W: 156, H: 50)
+  drawCard(2, 15, 156, 50, C_BORDER, "#040916");
+
+  // Grid lines
+  ctx.strokeStyle = "#0e1a30";
+  ctx.beginPath();
+  ctx.moveTo(4, 40); ctx.lineTo(154, 40); // 0 dB line
+  ctx.stroke();
+
+  // Draw Smooth EQ Bell Curve
+  ctx.strokeStyle = C_CYAN;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let x = 4; x <= 154; x++) {
+    const dist = (x - 70) / 18;
+    const bell = Math.exp(-dist * dist) * (dsp.peqGain * 1.5);
+    const y = 40 - bell;
+    if (x === 4) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // Active Bell Peak Point
+  ctx.fillStyle = C_YELLOW;
+  ctx.beginPath();
+  ctx.arc(70, 40 - (dsp.peqGain * 1.5), 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Band Selector Badges
+  const bands = ["B1", "B2", "B3", "B4", "B5"];
+  for (let b = 0; b < 5; b++) {
+    const bx = 3 + b * 18;
+    const isSel = (cursorIndex === b);
+    ctx.fillStyle = isSel ? C_CYAN : "#0a1426";
+    ctx.fillRect(bx, 68, 16, 12);
+    text(bands[b], bx + 2, 70, isSel ? "#000" : C_DIM);
+  }
+
+  // Active Band Parameter Values
+  text(`F:${dsp.peqFreq.toFixed(0)}Hz G:${(dsp.peqGain>=0?'+':'')+dsp.peqGain.toFixed(1)}dB Q:${dsp.peqQ.toFixed(1)}`, 96, 70, C_WHITE);
+
+  // Footer Buttons
+  drawCard(2, 102, 50, 20, cursorIndex === 5 ? C_CYAN : C_BORDER, cursorIndex === 5 ? C_SEL : C_CARD);
+  text("< Kembali", 4, 107, C_WHITE);
+
+  drawCard(108, 102, 50, 20, cursorIndex === 6 ? C_CYAN : C_BORDER, "#0077ff");
+  text("Simpan", 114, 107, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 8: SETTING LIMITER (limiter_screen_1790463624118.png)
+// =============================================================================
+function renderLimiterScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("SETTING LIMITER");
+
+  drawCard(2, 16, 156, 78, cursorIndex === 0 ? C_CYAN : C_BORDER);
+  text("OUT 1..4 LIMITER [ON]", 5, 20, C_CYAN);
+  text(`Threshold: ${dsp.limTh.toFixed(1)} dB`, 5, 36, cursorIndex === 0 && inEditMode ? C_YELLOW : C_WHITE);
+  text(`Attack   : ${dsp.limAtk.toFixed(1)} ms`, 5, 52, cursorIndex === 1 && inEditMode ? C_YELLOW : C_WHITE);
+  text(`Release  : ${dsp.limRel.toFixed(0)} ms`, 5, 68, cursorIndex === 2 && inEditMode ? C_YELLOW : C_WHITE);
+
+  drawCard(2, 102, 50, 20, cursorIndex === 3 ? C_CYAN : C_BORDER, cursorIndex === 3 ? C_SEL : C_CARD);
+  text("< Kembali", 4, 107, C_WHITE);
+
+  drawCard(108, 102, 50, 20, cursorIndex === 4 ? C_CYAN : C_BORDER, "#0077ff");
+  text("Simpan", 114, 107, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 9: PRESET (preset_screen_1790463637633.png)
+// =============================================================================
+function renderPresetScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("PRESET MANAGER");
+
+  drawCard(2, 16, 156, 32, C_BORDER);
+  text(`ACTIVE: Slot 0${dsp.preset} [Default]`, 5, 22, C_CYAN);
+  text("10 Internal NVS Memory Slots", 5, 34, C_DIM);
+
+  // Slots 1 to 5
+  for (let s = 1; s <= 5; s++) {
+    const sx = 2 + (s - 1) * 31;
+    const isSel = (cursorIndex === s - 1);
+    drawCard(sx, 54, 29, 24, isSel ? C_CYAN : C_BORDER, (s === dsp.preset) ? C_SEL : C_CARD);
+    text(`P0${s}`, sx + 4, 60, (s === dsp.preset) ? C_WHITE : C_DIM);
+  }
+
+  drawCard(2, 86, 75, 18, cursorIndex === 5 ? C_CYAN : C_BORDER, "#0077ff");
+  text("LOAD PRESET", 5, 90, C_WHITE);
+
+  drawCard(83, 86, 75, 18, cursorIndex === 6 ? C_CYAN : C_BORDER, C_GREEN);
+  text("SAVE TO NVS", 86, 90, "#000");
+
+  drawCard(2, 108, 50, 16, cursorIndex === 7 ? C_CYAN : C_BORDER, C_CARD);
+  text("< Kembali", 4, 111, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 10: STATUS (status_screen_1790463663974.png)
+// =============================================================================
+function renderStatusScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("STATUS SISTEM");
+
+  drawCard(2, 16, 76, 80, C_BORDER);
+  text("MODULES", 4, 18, C_CYAN);
+  text("ADC : OK", 4, 32, C_GREEN);
+  text("DSP : RUN", 4, 46, C_CYAN);
+  text("DAC1: OK", 4, 60, C_GREEN);
+  text("DAC2: OK", 4, 74, C_GREEN);
+
+  drawCard(82, 16, 76, 80, C_BORDER);
+  text("METRICS", 84, 18, C_CYAN);
+  text("SR  : 48kHz", 84, 32, C_WHITE);
+  text("CPU : 12 %", 84, 46, C_WHITE);
+  text("RAM : 28 %", 84, 60, C_WHITE);
+  text("Suhu: 42'C", 84, 74, C_YELLOW);
+
+  drawCard(2, 102, 50, 20, cursorIndex === 0 ? C_CYAN : C_BORDER, C_SEL);
+  text("< Kembali", 4, 107, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 11: ABOUT (about_screen_1790463689849.png)
+// =============================================================================
+function renderAboutScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+  drawWebHeader("INFORMASI SISTEM");
+
+  text("SOFGAM SS", 46, 16, C_CYAN);
+  text("by Shawir", 56, 26, C_DIM);
+
+  // Mini Sine Wave
+  ctx.strokeStyle = C_CYAN;
+  ctx.beginPath();
+  for (let x = 20; x <= 140; x++) {
+    const y = 40 + Math.sin((x - 20) * 0.08) * 4;
+    if (x === 20) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  drawCard(2, 48, 156, 52, C_BORDER);
+  text("Model: SOFGAM SS    Core: ESP32-S3", 4, 52, C_WHITE);
+  text("Ver  : v1.0.0       ADC : PCM1808", 4, 64, C_DIM);
+  text("DAC  : 2x PCM5102   Out : 4 Channel", 4, 76, C_DIM);
+  text("Build: 2025-09-26   Up  : 2d 14h", 4, 88, C_DIM);
+
+  drawCard(2, 104, 50, 18, cursorIndex === 0 ? C_CYAN : C_BORDER, C_SEL);
+  text("< Kembali", 4, 108, C_WHITE);
+}
+
+// =============================================================================
+// SCREEN 12: BOOT SPLASH SCREEN
+// =============================================================================
+function renderSplashScreen() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, 160, 128);
+
+  ctx.strokeStyle = C_CYAN_DIM;
+  ctx.strokeRect(2, 2, 156, 124);
+
+  text("SOFGAM SS", 28, 16, C_CYAN, 2);
+  text("by Shawir", 50, 34, C_CYAN_DIM);
+
+  for (let x = 18; x < 142; x++) {
+    const a1 = (x - 18) * 0.08 + (Date.now() * 0.003);
+    const y1 = 52 + Math.sin(a1) * 6;
+    ctx.fillStyle = C_CYAN;
+    ctx.fillRect(x, y1, 1, 2);
+
+    const a2 = (x - 18) * 0.06 + 1.4 - (Date.now() * 0.003);
+    const y2 = 54 + Math.sin(a2) * 5;
+    ctx.fillStyle = C_PURPLE;
+    ctx.fillRect(x, y2, 1, 1);
+  }
+
+  text("Better Sound, Better Exp.", 10, 72, C_DIM);
+  text("v1.0.0  * SYSTEM RUN", 20, 88, C_GREEN);
+  text("IP: 192.168.4.1", 28, 104, C_WHITE);
+}
+
+// Master Render Loop
+function render() {
+  simulateAudio();
+
+  switch (currentScreen) {
+    case "SPLASH":  renderSplashScreen(); break;
+    case "HOME":    renderHomeScreen(); break;
+    case "MENU":    renderMenuGrid(); break;
+    case "GAIN":    renderGainScreen(); break;
+    case "HPF":     renderHpfScreen(); break;
+    case "LPF":     renderLpfScreen(); break;
+    case "DELAY":   renderDelayScreen(); break;
+    case "PEQ":     renderPeqScreen(); break;
+    case "LIMITER": renderLimiterScreen(); break;
+    case "PRESET":  renderPresetScreen(); break;
+    case "STATUS":  renderStatusScreen(); break;
+    case "ABOUT":   renderAboutScreen(); break;
+    default:        renderHomeScreen(); break;
+  }
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+// Screen Switcher
+function switchView(screen) {
+  currentScreen = screen;
+  cursorIndex = 0;
+  inEditMode = false;
+
+  document.querySelectorAll('.screen-pill').forEach(p => {
+    p.classList.toggle('active', p.textContent.toUpperCase().includes(screen));
+  });
+}
+
+// Rotary Encoder Interaction
+function rotateKnob(delta) {
+  knobRotation += delta * 18;
+  document.getElementById('knobCap').style.transform = `rotate(${knobRotation}deg)`;
+
+  if (currentScreen === "SPLASH") {
+    switchView("HOME");
+    return;
+  }
+
+  if (inEditMode) {
+    if (currentScreen === "GAIN") {
+      if (cursorIndex === 1) dsp.out1Gain = Math.max(-60, Math.min(12, dsp.out1Gain + delta * 0.5));
+      if (cursorIndex === 2) dsp.out2Gain = Math.max(-60, Math.min(12, dsp.out2Gain + delta * 0.5));
+      if (cursorIndex === 3) dsp.out3Gain = Math.max(-60, Math.min(12, dsp.out3Gain + delta * 0.5));
+      if (cursorIndex === 4) dsp.out4Gain = Math.max(-60, Math.min(12, dsp.out4Gain + delta * 0.5));
+    } else if (currentScreen === "HPF") {
+      dsp.hpfFreq = Math.max(20, Math.min(20000, dsp.hpfFreq + delta * 10));
+    } else if (currentScreen === "LPF") {
+      dsp.lpfFreq = Math.max(20, Math.min(20000, dsp.lpfFreq + delta * 100));
+    } else if (currentScreen === "DELAY") {
+      dsp.delay1 = Math.max(0, Math.min(50, dsp.delay1 + delta * 0.1));
+    } else if (currentScreen === "PEQ") {
+      dsp.peqGain = Math.max(-18, Math.min(18, dsp.peqGain + delta * 0.5));
+    } else if (currentScreen === "LIMITER") {
+      dsp.limTh = Math.max(-30, Math.min(0, dsp.limTh + delta * 0.5));
+    }
+  } else {
+    // Navigate Cursors
+    let max = 0;
+    if (currentScreen === "HOME") max = 6;
+    else if (currentScreen === "MENU") max = MENU_TILES.length - 1;
+    else if (currentScreen === "GAIN") max = 7;
+    else if (currentScreen === "HPF" || currentScreen === "LPF" || currentScreen === "DELAY") max = 5;
+    else if (currentScreen === "PEQ") max = 6;
+    else if (currentScreen === "LIMITER") max = 4;
+    else if (currentScreen === "PRESET") max = 7;
+    else if (currentScreen === "STATUS" || currentScreen === "ABOUT") max = 0;
+
+    cursorIndex = Math.max(0, Math.min(max, cursorIndex + delta));
+  }
+}
+
+function clickKnob() {
+  if (currentScreen === "SPLASH") {
+    switchView("HOME");
+    return;
+  }
+
+  if (currentScreen === "HOME") {
+    // Bottom Dock navigation
+    const dockDestinations = ["HOME", "GAIN", "HPF", "LPF", "DELAY", "PEQ", "MENU"];
+    const target = dockDestinations[cursorIndex] || "MENU";
+    if (target === "HOME") return;
+    switchView(target);
+    return;
+  }
+
+  if (currentScreen === "MENU") {
+    const tile = MENU_TILES[cursorIndex];
+    if (tile) switchView(tile.id);
+    return;
+  }
+
+  // Inside Setting Views
+  if (currentScreen === "GAIN") {
+    if (cursorIndex === 6) { switchView("MENU"); return; }
+    if (cursorIndex === 7) { alert("Gain tersimpan!"); switchView("HOME"); return; }
+    inEditMode = !inEditMode;
+  } else if (currentScreen === "HPF" || currentScreen === "LPF" || currentScreen === "DELAY") {
+    if (cursorIndex === 4) { switchView("MENU"); return; }
+    if (cursorIndex === 5) { alert("Filter tersimpan!"); switchView("HOME"); return; }
+    inEditMode = !inEditMode;
+  } else if (currentScreen === "PEQ") {
+    if (cursorIndex === 5) { switchView("MENU"); return; }
+    if (cursorIndex === 6) { alert("PEQ tersimpan!"); switchView("HOME"); return; }
+    inEditMode = !inEditMode;
+  } else if (currentScreen === "LIMITER") {
+    if (cursorIndex === 3) { switchView("MENU"); return; }
+    if (cursorIndex === 4) { alert("Limiter tersimpan!"); switchView("HOME"); return; }
+    inEditMode = !inEditMode;
+  } else if (currentScreen === "PRESET") {
+    if (cursorIndex === 7) { switchView("MENU"); return; }
+    if (cursorIndex === 5) { alert("Preset loaded!"); return; }
+    if (cursorIndex === 6) { alert("Preset saved to NVS!"); return; }
+    dsp.preset = cursorIndex + 1;
+  } else if (currentScreen === "STATUS" || currentScreen === "ABOUT") {
+    switchView("MENU");
+  }
+}
+
+function longPressKnob() {
+  switchView("HOME");
+}
+
+// Bindings
+document.getElementById('btnRotLeft').addEventListener('click', () => rotateKnob(-1));
+document.getElementById('btnRotRight').addEventListener('click', () => rotateKnob(1));
+document.getElementById('btnClick').addEventListener('click', () => clickKnob());
+document.getElementById('btnLongPress').addEventListener('click', () => longPressKnob());
+
+const knobHousing = document.getElementById('knobHousing');
+knobHousing.addEventListener('click', () => clickKnob());
+knobHousing.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  rotateKnob(e.deltaY < 0 ? 1 : -1);
+}, { passive: false });
+</script>
+
+</body>
+</html>

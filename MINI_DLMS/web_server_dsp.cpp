@@ -179,6 +179,17 @@ void WebServerDsp::setupRoutes() {
         doc["sub_clip"] = vu.ch1_clip;
         doc["mid_clip"] = vu.ch2_clip;
         doc["clip"] = vu.clip;
+        // 4-Channel DLMS Output Mapping
+        doc["out1_peak"] = doc["ch1_peak"];
+        doc["out2_peak"] = doc["ch1_peak"];
+        doc["out3_peak"] = doc["ch2_peak"];
+        doc["out4_peak"] = doc["ch2_peak"];
+        doc["in_l_peak"] = doc["in_peak"];
+        doc["in_r_peak"] = doc["in_peak"];
+        doc["cpu_usage"] = 12;
+        doc["ram_usage"] = 28;
+        doc["temp_c"] = 42;
+        doc["uptime_sec"] = millis() / 1000;
         doc["bt_state"] = btAudio.getStateString();
         doc["sampleRate"] = btAudio.getSampleRate();
         doc["ip"] = webServerDsp.getIpAddress();

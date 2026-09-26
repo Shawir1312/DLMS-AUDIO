@@ -3,10 +3,20 @@
 #include "config.h"
 #include "dsp_types.h"
 
+// Screen Modes matching Web UI 1-to-1
 enum DisplayScreenMode {
-    SCREEN_HOME = 0,   // VU Meter & System Info
-    SCREEN_MENU,       // Settings Menu
-    SCREEN_EDIT        // Parameter Adjustment
+    SCREEN_HOME = 0,    // Split-card cyber layout (IN ADC, OUT 4CH, Preset, Badges, Bottom Cyber Dock)
+    SCREEN_MENU_GRID,   // 2x5 Cyber Menu Tile Matrix
+    SCREEN_GAIN,        // Setting Gain (Input ADC, Output 4CH, Mutes, Polarity)
+    SCREEN_HPF,         // Setting HPF (2x2 channel cards)
+    SCREEN_LPF,         // Setting LPF (2x2 channel cards)
+    SCREEN_DELAY,       // Setting Delay (2x2 channel cards with ms & distance)
+    SCREEN_PEQ,         // Setting PEQ (Live graphical response curve, B1..B5)
+    SCREEN_LIMITER,     // Setting Limiter (Threshold, Attack, Release)
+    SCREEN_PRESET,      // Preset Manager (Slots P01..P05, Load, Save)
+    SCREEN_STATUS,      // Hardware Telemetry & Modules
+    SCREEN_ABOUT,       // System Model & Info
+    SCREEN_MENU = SCREEN_MENU_GRID // Legacy compatibility alias
 };
 
 class TftDisplay {
@@ -16,10 +26,10 @@ public:
     bool begin();
     void update();
 
-    // Call when rotary encoder generates events
+    // Call when rotary encoder generates events (EC11 hardware or Web virtual knob)
     void handleEncoder(int32_t delta, bool clicked, bool longPressed);
 
-    // Switch screens
+    // Switch screen modes
     void setScreenMode(DisplayScreenMode mode);
     DisplayScreenMode getScreenMode() const { return _currentMode; }
 
@@ -29,48 +39,59 @@ private:
     unsigned long _lastRenderTime;
     unsigned long _lastUserActivityTime;
 
-    // Menu State
-    int8_t _menuIndex;
-    bool _inEditMode;
-    int8_t _menuScrollOffset;
+    // Navigation and edit state
+    int8_t _cursorIndex;    // Active selected index on current screen
+    bool   _inEditMode;     // True when actively tweaking a numeric value with encoder
+    uint8_t _peqBandIndex;  // 0..4 (B1..B5)
+    uint8_t _presetSlot;    // 1..5
 
-    // Previous VU meter drawing cache (for flicker-free partial updates)
-    int16_t _prevInBarW;
-    int16_t _prevCh1BarW;
-    int16_t _prevCh2BarW;
-    bool    _prevCh1Clip;
-    bool    _prevCh2Clip;
-    float   _prevCh1Gain;
-    float   _prevCh2Gain;
-    float   _prevCh1Hpf;
-    float   _prevCh2Hpf;
+    // Dynamic VU & dynamic text cache for Home Screen
+    float   _prevInLDb;
+    float   _prevInRDb;
+    float   _prevOut1Db;
+    float   _prevOut2Db;
+    float   _prevOut3Db;
+    float   _prevOut4Db;
+    int16_t _prevInLSegs;
+    int16_t _prevInRSegs;
+    int16_t _prevOut1Segs;
+    int16_t _prevOut2Segs;
+    int16_t _prevOut3Segs;
+    int16_t _prevOut4Segs;
+
+    // Home parameter cache
+    float   _prevMasterGain;
+    float   _prevHpfFreq;
+    float   _prevLpfFreq;
+    bool    _prevHpfEn;
+    bool    _prevLpfEn;
+    bool    _prevPeqEn;
+    bool    _prevLimEn;
     uint8_t _prevPreset;
-    bool    _prevCh1Mute;
-    bool    _prevCh2Mute;
-    bool    _prevCh1HpfEn;
-    float   _prevCh1HpfFreq;
-    bool    _prevCh1LpfEn;
-    float   _prevCh1LpfFreq;
-    bool    _prevCh2HpfEn;
-    float   _prevCh2HpfFreq;
-    bool    _prevCh2LpfEn;
-    float   _prevCh2LpfFreq;
-    uint8_t _prevEqMask;
-    // Previous Menu drawing cache (for 100% flicker-free differential row updates)
-    int8_t _prevRenderedMenuIndex;
-    int8_t _prevRenderedScrollOffset;
-    bool   _prevRenderedEditMode;
+    int8_t  _prevDockIndex;
 
+    // Drawing Primitives & Web-matching Renderers
+    void drawHeader(const char* title, const char* right_tag = "48k", bool show_run = true);
+    void drawCard(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t borderCol, uint16_t bgCol);
+    void drawLedMeter(int16_t x, int16_t y, int16_t w, int16_t h, float db, uint8_t segments, int16_t& prev_segs);
+
+    void drawSplashScreen();
     void drawHomeScreenLayout();
     void updateHomeDynamicData();
 
-    void drawMenuScreen(bool forceFullRedraw = false);
-    void drawMenuRow(uint8_t row, bool isSelected, bool isEditMode);
-    void drawMenuFooter();
-    void applyMenuEdit(int32_t delta);
-    void executeMenuSelect();
-    void drawHeader(const char* title, uint16_t bg_color, uint16_t text_color);
-    void drawVuBar(int16_t x, int16_t y, int16_t w, int16_t h, float db, int16_t& prev_w);
+    void drawMenuGridScreen();
+    void drawGainScreen();
+    void drawHpfScreen();
+    void drawLpfScreen();
+    void drawDelayScreen();
+    void drawPeqScreen();
+    void drawLimiterScreen();
+    void drawPresetScreen();
+    void drawStatusScreen();
+    void drawAboutScreen();
+
+    void applyParameterEdit(int32_t delta);
+    void handleScreenClick();
 };
 
 extern TftDisplay tftDisplay;
