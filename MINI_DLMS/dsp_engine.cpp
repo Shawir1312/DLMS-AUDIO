@@ -651,15 +651,17 @@ void DspEngine::processAudio(const int16_t* in_pcm, int16_t* out_pcm, size_t fra
         if (_config.ch1.peq[1].enabled) s_ch1 = _ch1Peq[1].process(s_ch1);
         if (_config.ch1.peq[2].enabled) s_ch1 = _ch1Peq[2].process(s_ch1);
 
-        // 4. Delay Line
-        if (_ch1DelaySamples > 0.5f && _ch1DelayBuffer) {
+        // 4. Delay Line (Continuously buffered for instantaneous zero-latency adjustment)
+        if (_ch1DelayBuffer) {
             _ch1DelayBuffer[_ch1DelayWriteIdx] = s_ch1;
-            float r_idx = (float)_ch1DelayWriteIdx - _ch1DelaySamples;
-            if (r_idx < 0.0f) r_idx += (float)_delayBufferSize;
-            size_t idx0 = (size_t)r_idx;
-            size_t idx1 = (idx0 + 1) % _delayBufferSize;
-            float frac = r_idx - (float)idx0;
-            s_ch1 = _ch1DelayBuffer[idx0] * (1.0f - frac) + _ch1DelayBuffer[idx1] * frac;
+            if (_ch1DelaySamples > 0.5f) {
+                float r_idx = (float)_ch1DelayWriteIdx - _ch1DelaySamples;
+                if (r_idx < 0.0f) r_idx += (float)_delayBufferSize;
+                size_t idx0 = (size_t)r_idx;
+                size_t idx1 = (idx0 + 1) % _delayBufferSize;
+                float frac = r_idx - (float)idx0;
+                s_ch1 = _ch1DelayBuffer[idx0] * (1.0f - frac) + _ch1DelayBuffer[idx1] * frac;
+            }
             _ch1DelayWriteIdx = (_ch1DelayWriteIdx + 1) % _delayBufferSize;
         }
 
@@ -719,15 +721,17 @@ void DspEngine::processAudio(const int16_t* in_pcm, int16_t* out_pcm, size_t fra
         if (_config.ch2.peq[1].enabled) s_ch2 = _ch2Peq[1].process(s_ch2);
         if (_config.ch2.peq[2].enabled) s_ch2 = _ch2Peq[2].process(s_ch2);
 
-        // 4. Delay Line
-        if (_ch2DelaySamples > 0.5f && _ch2DelayBuffer) {
+        // 4. Delay Line (Continuously buffered for instantaneous zero-latency adjustment)
+        if (_ch2DelayBuffer) {
             _ch2DelayBuffer[_ch2DelayWriteIdx] = s_ch2;
-            float r_idx = (float)_ch2DelayWriteIdx - _ch2DelaySamples;
-            if (r_idx < 0.0f) r_idx += (float)_delayBufferSize;
-            size_t idx0 = (size_t)r_idx;
-            size_t idx1 = (idx0 + 1) % _delayBufferSize;
-            float frac = r_idx - (float)idx0;
-            s_ch2 = _ch2DelayBuffer[idx0] * (1.0f - frac) + _ch2DelayBuffer[idx1] * frac;
+            if (_ch2DelaySamples > 0.5f) {
+                float r_idx = (float)_ch2DelayWriteIdx - _ch2DelaySamples;
+                if (r_idx < 0.0f) r_idx += (float)_delayBufferSize;
+                size_t idx0 = (size_t)r_idx;
+                size_t idx1 = (idx0 + 1) % _delayBufferSize;
+                float frac = r_idx - (float)idx0;
+                s_ch2 = _ch2DelayBuffer[idx0] * (1.0f - frac) + _ch2DelayBuffer[idx1] * frac;
+            }
             _ch2DelayWriteIdx = (_ch2DelayWriteIdx + 1) % _delayBufferSize;
         }
 

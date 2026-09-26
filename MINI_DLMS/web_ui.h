@@ -689,6 +689,9 @@ let dspState = {
 
 let activePresetSlot = 1;
 let debounceTimer = null;
+let dspAbortCtrl = null;
+let isUserAdjusting = false;
+let userAdjustTimer = null;
 
 function freqToSlider(f) {
   if (!f || f < 20) f = 20;
@@ -814,20 +817,36 @@ function syncUiFromState() {
   });
 }
 
-function sendDspUpdate() {
+function sendDspUpdate(immediate = false) {
+  isUserAdjusting = true;
+  clearTimeout(userAdjustTimer);
+  userAdjustTimer = setTimeout(() => {
+    isUserAdjusting = false;
+  }, 700);
+
   clearTimeout(debounceTimer);
+  const waitMs = immediate ? 0 : 25; // 25ms ultra-responsive debounce
+
   debounceTimer = setTimeout(async () => {
+    if (dspAbortCtrl) {
+      try { dspAbortCtrl.abort(); } catch(e) {}
+    }
+    dspAbortCtrl = new AbortController();
+
     try {
       await fetch('/api/dsp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dspState)
+        body: JSON.stringify(dspState),
+        signal: dspAbortCtrl.signal
       });
       drawGraph();
     } catch (e) {
-      console.error("Error posting DSP config:", e);
+      if (e.name !== 'AbortError') {
+        console.warn("DSP update network note:", e);
+      }
     }
-  }, 40);
+  }, waitMs);
 }
 
 // Master Listeners
@@ -845,14 +864,15 @@ document.getElementById('master-gain-num').addEventListener('input', (e) => {
   dspState.master_gain_db = v;
   sendDspUpdate();
 });
+document.getElementById('master-gain').addEventListener('change', () => sendDspUpdate(true));
 document.getElementById('master-invert').addEventListener('change', (e) => {
   dspState.polarity_inverted = e.target.checked;
-  sendDspUpdate();
+  sendDspUpdate(true);
 });
 document.getElementById('master-mute-btn').addEventListener('click', () => {
   dspState.mute = !dspState.mute;
   syncUiFromState();
-  sendDspUpdate();
+  sendDspUpdate(true);
 });
 
 // X-Over Link Listeners
@@ -891,94 +911,103 @@ function applyXoverLink() {
     document.getElementById(`${chKey}-gain-num`).value = v;
     document.getElementById(`${chKey}-gain-txt`).innerText = `${v.toFixed(1)} dB`;
     dspState[chKey].gain_db = v;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-gain`).addEventListener('change', () => sendDspUpdate(true));
   document.getElementById(`${chKey}-gain-num`).addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     document.getElementById(`${chKey}-gain`).value = v;
     document.getElementById(`${chKey}-gain-txt`).innerText = `${v.toFixed(1)} dB`;
     dspState[chKey].gain_db = v;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-gain-num`).addEventListener('change', () => sendDspUpdate(true));
   document.getElementById(`${chKey}-invert`).addEventListener('change', (e) => {
     dspState[chKey].polarity_inverted = e.target.checked;
-    sendDspUpdate();
+    sendDspUpdate(true);
   });
   document.getElementById(`${chKey}-mute-btn`).addEventListener('click', () => {
     dspState[chKey].mute = !dspState[chKey].mute;
     syncUiFromState();
-    sendDspUpdate();
+    sendDspUpdate(true);
   });
   document.getElementById(`${chKey}-delay`).addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     document.getElementById(`${chKey}-delay-num`).value = v;
     document.getElementById(`${chKey}-delay-txt`).innerText = `${v.toFixed(1)} ms`;
     dspState[chKey].delay_ms = v;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-delay`).addEventListener('change', () => sendDspUpdate(true));
   document.getElementById(`${chKey}-delay-num`).addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     document.getElementById(`${chKey}-delay`).value = v;
     document.getElementById(`${chKey}-delay-txt`).innerText = `${v.toFixed(1)} ms`;
     dspState[chKey].delay_ms = v;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-delay-num`).addEventListener('change', () => sendDspUpdate(true));
 
   // HPF
   document.getElementById(`${chKey}-hpf-en`).addEventListener('change', (e) => {
     dspState[chKey].hpf.enabled = e.target.checked;
-    sendDspUpdate();
+    sendDspUpdate(true);
   });
   document.getElementById(`${chKey}-hpf-sl`).addEventListener('input', (e) => {
     const f = sliderToFreq(parseFloat(e.target.value));
     document.getElementById(`${chKey}-hpf-f`).value = f;
     dspState[chKey].hpf.freq = f;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-hpf-sl`).addEventListener('change', () => sendDspUpdate(true));
   document.getElementById(`${chKey}-hpf-f`).addEventListener('input', (e) => {
     const f = parseFloat(e.target.value) || 20;
     document.getElementById(`${chKey}-hpf-sl`).value = freqToSlider(f);
     dspState[chKey].hpf.freq = f;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-hpf-f`).addEventListener('change', () => sendDspUpdate(true));
   document.getElementById(`${chKey}-hpf-s`).addEventListener('change', (e) => {
     dspState[chKey].hpf.slope = parseInt(e.target.value);
-    sendDspUpdate();
+    sendDspUpdate(true);
   });
 
   // LPF
   document.getElementById(`${chKey}-lpf-en`).addEventListener('change', (e) => {
     dspState[chKey].lpf.enabled = e.target.checked;
-    sendDspUpdate();
+    sendDspUpdate(true);
   });
   document.getElementById(`${chKey}-lpf-sl`).addEventListener('input', (e) => {
     const f = sliderToFreq(parseFloat(e.target.value));
     document.getElementById(`${chKey}-lpf-f`).value = f;
     dspState[chKey].lpf.freq = f;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-lpf-sl`).addEventListener('change', () => sendDspUpdate(true));
   document.getElementById(`${chKey}-lpf-f`).addEventListener('input', (e) => {
     const f = parseFloat(e.target.value) || 20;
     document.getElementById(`${chKey}-lpf-sl`).value = freqToSlider(f);
     dspState[chKey].lpf.freq = f;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-lpf-f`).addEventListener('change', () => sendDspUpdate(true));
   document.getElementById(`${chKey}-lpf-s`).addEventListener('change', (e) => {
     dspState[chKey].lpf.slope = parseInt(e.target.value);
-    sendDspUpdate();
+    sendDspUpdate(true);
   });
 
   // Limiter
   document.getElementById(`${chKey}-lim-en`).addEventListener('change', (e) => {
     dspState[chKey].limiter.enabled = e.target.checked;
-    sendDspUpdate();
+    sendDspUpdate(true);
   });
   document.getElementById(`${chKey}-lim-th`).addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     document.getElementById(`${chKey}-lim-th-txt`).innerText = `${v.toFixed(1)} dB`;
     dspState[chKey].limiter.threshold_db = v;
-    sendDspUpdate();
+    sendDspUpdate(false);
   });
+  document.getElementById(`${chKey}-lim-th`).addEventListener('change', () => sendDspUpdate(true));
 });
 
 function updatePeq(chKey, b) {
@@ -1070,11 +1099,21 @@ async function resetCurrentPreset() {
   }
 }
 
-// Real-time VU Telemetry Polling
-function startMeterPolling() {
-  setInterval(async () => {
+// Real-time VU Telemetry Polling (Sequential non-blocking loop, zero network congestion)
+let meterPollActive = true;
+
+async function startMeterPolling() {
+  while (meterPollActive) {
+    if (isUserAdjusting) {
+      await new Promise(r => setTimeout(r, 120));
+      continue;
+    }
+
     try {
-      const res = await fetch('/api/meter');
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 600);
+      const res = await fetch('/api/meter', { signal: ctrl.signal });
+      clearTimeout(timer);
       if (res.ok) {
         const m = await res.json();
         updateVuBar('in-peak-bar', 'in-peak-tick', m.in_peak, 'in-peak-val');
@@ -1082,18 +1121,24 @@ function startMeterPolling() {
         updateVuBar('ch2-peak-bar', 'ch2-peak-tick', m.ch2_peak, 'ch2-peak-val');
 
         const clipBadge = document.getElementById('clip-badge');
-        if (m.clip) clipBadge.classList.add('active');
-        else clipBadge.classList.remove('active');
+        if (clipBadge) {
+          if (m.clip) clipBadge.classList.add('active');
+          else clipBadge.classList.remove('active');
+        }
 
-        document.getElementById('sr-txt').innerText = `${m.sampleRate} Hz`;
+        const sr = document.getElementById('sr-txt');
+        if (sr) sr.innerText = `${m.sampleRate} Hz`;
         const btTxt = document.getElementById('bt-txt');
         const badgeBt = document.getElementById('badge-bt');
-        btTxt.innerText = `BT: ${m.bt_state}`;
-        badgeBt.className = 'badge ' + (m.bt_state === 'STREAMING' ? 'streaming' : (m.bt_state === 'CONNECTED' ? 'connected' : ''));
-        document.getElementById('wifi-txt').innerText = `WiFi: ${m.ip}`;
+        if (btTxt) btTxt.innerText = `BT: ${m.bt_state}`;
+        if (badgeBt) badgeBt.className = 'badge ' + (m.bt_state === 'STREAMING' ? 'streaming' : (m.bt_state === 'CONNECTED' ? 'connected' : ''));
+        const wifiTxt = document.getElementById('wifi-txt');
+        if (wifiTxt) wifiTxt.innerText = `WiFi: ${m.ip}`;
       }
     } catch (e) {}
-  }, 70);
+
+    await new Promise(r => setTimeout(r, 100));
+  }
 }
 
 function updateVuBar(barId, tickId, db, textId) {

@@ -90,10 +90,7 @@ void setup() {
 }
 
 void loop() {
-    // 1. Handle incoming Web Server client requests (Non-blocking pada Core 0)
-    webServerDsp.loop();
-
-    // 2. Service Rotary Encoder events
+    // 1. Service Rotary Encoder events
     rotaryEncoder.update();
     int32_t delta = rotaryEncoder.getDelta();
     EncoderButtonEvent btnEv = rotaryEncoder.getButtonEvent();

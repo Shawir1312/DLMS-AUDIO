@@ -14,6 +14,15 @@ WebServerDsp webServerDsp;
 static WebServer server(WEB_SERVER_PORT);
 static DNSServer dnsServer;
 
+static TaskHandle_t s_webTaskHandle = nullptr;
+
+static void webServerTask(void* param) {
+    while (1) {
+        webServerDsp.loop();
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+}
+
 WebServerDsp::WebServerDsp() : _isApMode(false) {}
 
 bool WebServerDsp::begin() {
@@ -79,12 +88,29 @@ bool WebServerDsp::begin() {
         Serial.printf("[WiFi] Web Interface URL: http://%s\n", WiFi.softAPIP().toString().c_str());
     }
 
+    // Disable Wi-Fi modem sleep for ultra-low ping latency (1-3ms) and real-time responsiveness
+    WiFi.setSleep(false);
+
     // 3. Register HTTP Routes
     setupRoutes();
 
     // 4. Start Web Server
     server.begin();
     Serial.println("[Web] HTTP Server started on port 80");
+
+    // 5. Dedicated Web Server Task on Core 0 (Directly on same core as Wi-Fi/LwIP)
+    if (!s_webTaskHandle) {
+        xTaskCreatePinnedToCore(
+            webServerTask,
+            "WebTask",
+            4096,
+            nullptr,
+            3,
+            &s_webTaskHandle,
+            0 // Core 0
+        );
+        Serial.println("[Web] Dedicated Web Task running on Core 0");
+    }
     return true;
 }
 
@@ -159,6 +185,7 @@ void WebServerDsp::setupRoutes() {
 
         String res;
         serializeJson(doc, res);
+        server.sendHeader("Connection", "close");
         server.send(200, "application/json", res);
     });
 
@@ -359,6 +386,7 @@ void WebServerDsp::setupRoutes() {
 
         // Apply safely to DSP Engine
         dspEngine.setConfig(cfg);
+        server.sendHeader("Connection", "close");
         server.send(200, "application/json", "{\"status\":\"ok\"}");
     });
 
