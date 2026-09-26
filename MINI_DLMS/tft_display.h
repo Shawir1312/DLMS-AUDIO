@@ -44,13 +44,17 @@ private:
     float   _prevCh2Gain;
     float   _prevCh1Hpf;
     float   _prevCh2Hpf;
-    uint8_t _prevPreset;
+    // Previous Menu drawing cache (for 100% flicker-free differential row updates)
+    int8_t _prevRenderedMenuIndex;
+    int8_t _prevRenderedScrollOffset;
+    bool   _prevRenderedEditMode;
 
     void drawHomeScreenLayout();
     void updateHomeDynamicData();
 
-    void drawMenuScreen();
-    void updateMenuItemValue(uint8_t idx);
+    void drawMenuScreen(bool forceFullRedraw = false);
+    void drawMenuRow(uint8_t row, bool isSelected, bool isEditMode);
+    void drawMenuFooter();
     void applyMenuEdit(int32_t delta);
     void executeMenuSelect();
     void drawHeader(const char* title, uint16_t bg_color, uint16_t text_color);

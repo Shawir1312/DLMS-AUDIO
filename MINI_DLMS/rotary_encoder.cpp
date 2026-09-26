@@ -6,6 +6,8 @@ RotaryEncoder::RotaryEncoder()
     : _clkPin(ENCODER_CLK_PIN),
       _dtPin(ENCODER_DT_PIN),
       _swPin(ENCODER_SW_PIN),
+      _enabled(ENCODER_PHYSICAL_ATTACHED),
+      _subSteps(0),
       _encoderDelta(0),
       _lastEncoded(0),
       _lastBtnReading(HIGH),
@@ -17,10 +19,18 @@ RotaryEncoder::RotaryEncoder()
 {
 }
 
-void RotaryEncoder::begin(uint8_t clk_pin, uint8_t dt_pin, uint8_t sw_pin) {
-    _clkPin = clk_pin;
-    _dtPin  = dt_pin;
-    _swPin  = sw_pin;
+void RotaryEncoder::begin(uint8_t clk_pin, uint8_t dt_pin, uint8_t sw_pin, bool enabled) {
+    _clkPin  = clk_pin;
+    _dtPin   = dt_pin;
+    _swPin   = sw_pin;
+    _enabled = enabled;
+    _subSteps = 0;
+    _encoderDelta = 0;
+
+    if (!_enabled) {
+        Serial.println("[ENCODER] Modul fisik di-NONAKTIFKAN (menunggu modul tiba). Menggunakan Kontrol Virtual Web.");
+        return;
+    }
 
     // Use internal pull-ups
     pinMode(_clkPin, INPUT_PULLUP);
@@ -33,6 +43,7 @@ void RotaryEncoder::begin(uint8_t clk_pin, uint8_t dt_pin, uint8_t sw_pin) {
 
     _lastBtnReading = digitalRead(_swPin);
     _btnState = (_lastBtnReading == LOW);
+    Serial.printf("[ENCODER] Modul fisik AKTIF (CLK=%d, DT=%d, SW=%d)\n", _clkPin, _dtPin, _swPin);
 }
 
 void RotaryEncoder::handleEncoderIsr() {
@@ -40,17 +51,35 @@ void RotaryEncoder::handleEncoderIsr() {
 }
 
 void RotaryEncoder::update() {
-    // 1. Safe polling-based quadrature decoding (Zero CPU crash/interrupt storm risk)
+    // Jika rotary fisik belum dipasang / dinonaktifkan, JANGAN baca pin floating agar tidak memicu pulsa hantu/acak!
+    if (!_enabled) return;
+
+    // 1. Noise-rejecting Gray Code state machine (Buxton Algorithm)
     uint8_t msb = digitalRead(_clkPin);
     uint8_t lsb = digitalRead(_dtPin);
     uint8_t encoded = (msb << 1) | lsb;
 
     if (encoded != _lastEncoded) {
-        uint8_t sum = (_lastEncoded << 2) | encoded;
-        if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) {
-            _encoderDelta++;
-        } else if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) {
-            _encoderDelta--;
+        // 16-state valid transition table: 0 = illegal/noise jump, +1 = CW, -1 = CCW
+        static const int8_t ENC_TABLE[16] = {
+             0, -1, +1,  0,
+            +1,  0,  0, -1,
+            -1,  0,  0, +1,
+             0, +1, -1,  0
+        };
+        uint8_t idx = (_lastEncoded << 2) | encoded;
+        int8_t step = ENC_TABLE[idx];
+        if (step != 0) {
+            _subSteps += step;
+            // Detent resting position pada EC11 adalah kedua pin HIGH (0b11)
+            if (encoded == 0b11) {
+                if (_subSteps >= 2) {
+                    _encoderDelta++;
+                } else if (_subSteps <= -2) {
+                    _encoderDelta--;
+                }
+                _subSteps = 0;
+            }
         }
         _lastEncoded = encoded;
     }
@@ -64,7 +93,7 @@ void RotaryEncoder::update() {
         _lastBtnReading = reading;
     }
 
-    if ((now - _lastDebounceTime) > 35) { // 35ms debounce
+    if ((now - _lastDebounceTime) > 40) { // 40ms solid debounce
         bool isPressed = (reading == LOW);
 
         if (isPressed && !_btnState) {
@@ -81,7 +110,7 @@ void RotaryEncoder::update() {
         } else if (!isPressed && _btnState) {
             // Button just released
             _btnState = false;
-            if (!_longPressDispatched && (now - _btnPressStartTime >= 30)) {
+            if (!_longPressDispatched && (now - _btnPressStartTime >= 40)) {
                 _pendingButtonEvent = BTN_CLICKED;
             }
         }
@@ -90,12 +119,8 @@ void RotaryEncoder::update() {
 
 int32_t RotaryEncoder::getDelta() {
     int32_t val = _encoderDelta;
-    // Step per 2 transitions for smooth, 1-click-per-detent feeling
-    int32_t steps = val / 2;
-    if (steps != 0) {
-        _encoderDelta -= steps * 2;
-    }
-    return steps;
+    _encoderDelta = 0;
+    return val;
 }
 
 EncoderButtonEvent RotaryEncoder::getButtonEvent() {

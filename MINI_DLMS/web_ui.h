@@ -1216,9 +1216,11 @@ function drawGraph() {
 }
 
 // ============================================================================
-// Virtual Rotary Controller API & Event Handling
+// Virtual Rotary Controller API & Event Handling (Serialized Promise Queue)
 // ============================================================================
-async function sendEncoder(action, delta = 0) {
+let encoderQueue = Promise.resolve();
+
+function sendEncoder(action, delta = 0) {
   if (navigator.vibrate) {
     try { navigator.vibrate(25); } catch(e) {}
   }
@@ -1233,27 +1235,23 @@ async function sendEncoder(action, delta = 0) {
   else if (action === 'click') label = '🔘 Klik OK';
   else if (action === 'long') label = '↩ Kembali Home';
 
-  if (st) st.innerHTML = `<span style="color:#38bdf8;">Mengirim: ${label}...</span>`;
   if (flSt) flSt.innerText = label;
 
-  try {
-    const res = await fetch('/api/encoder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: action, delta: delta })
-    });
-    if (res.ok) {
-      if (st) st.innerHTML = `<span style="color:#10b981;">✓ ${label} OK</span>`;
-      setTimeout(() => {
-        if (st && st.innerText.includes('OK')) {
-          st.innerText = 'Siap Digunakan';
-        }
-      }, 1200);
+  encoderQueue = encoderQueue.then(async () => {
+    try {
+      const res = await fetch('/api/encoder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, delta: delta })
+      });
+      if (res.ok) {
+        if (st) st.innerHTML = `<span style="color:#10b981;">✓ ${label} OK</span>`;
+      }
+    } catch(e) {
+      console.warn("Virtual encoder request failed:", e);
+      if (st) st.innerHTML = `<span style="color:#ef4444;">Gagal Terhubung</span>`;
     }
-  } catch(e) {
-    console.warn("Virtual encoder request failed:", e);
-    if (st) st.innerHTML = `<span style="color:#ef4444;">Gagal Terhubung</span>`;
-  }
+  });
 }
 
 // Global Keyboard Navigation for Virtual Rotary Knob

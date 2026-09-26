@@ -41,6 +41,11 @@
 #define TFT_BL_PIN            8    // Pin 7 - BL (GPIO 8 atau colok langsung ke 3.3V)
 
 // 4. Hardware Pins: Rotary Encoder (EC11 dengan Push Button)
+// Set ke false jika modul rotary encoder fisik belum dipasang / belum datang
+// agar pin floating (GPIO 1, 2, 42) tidak memicu pulsa hantu/acak ke menu LCD!
+// Ubah ke true jika modul EC11 fisik sudah dicolok ke pin GPIO.
+#define ENCODER_PHYSICAL_ATTACHED false
+
 #define ENCODER_CLK_PIN       1    // Pin CLK / A
 #define ENCODER_DT_PIN        2    // Pin DT / B
 #define ENCODER_SW_PIN        42   // Pin Tombol Push / SW (Active LOW)

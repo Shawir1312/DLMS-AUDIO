@@ -8,8 +8,8 @@
 
 TftDisplay tftDisplay;
 
-// Direct 5-pin constructor: Zero SPI bus conflicts, 100% crash-free
-static Adafruit_ST7735 tft(TFT_CS_PIN, TFT_DC_PIN, TFT_MOSI_PIN, TFT_SCLK_PIN, TFT_RST_PIN);
+// Hardware SPI constructor: 27 MHz fast hardware SPI, 100% flicker-free
+static Adafruit_ST7735 tft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
 
 // Bright, high-contrast Color definitions (RGB565)
 #define COLOR_BG         0x0000 // Black
@@ -51,12 +51,15 @@ TftDisplay::TftDisplay()
       _prevCh2Gain(-999.0f),
       _prevCh1Hpf(-1.0f),
       _prevCh2Hpf(-1.0f),
-      _prevPreset(255)
+      _prevPreset(255),
+      _prevRenderedMenuIndex(-1),
+      _prevRenderedScrollOffset(-1),
+      _prevRenderedEditMode(false)
 {
 }
 
 bool TftDisplay::begin() {
-    Serial.println("[TFT] Memulai Inisialisasi Layar 1.8\" ST7735...");
+    Serial.println("[TFT] Memulai Inisialisasi Layar 1.8\" ST7735 via Hardware SPI...");
 
     // 1. Pastikan Backlight menyala (Aktifkan Pin 8 dan Pin 13 dan TFT_BL_PIN)
     pinMode(8, OUTPUT);
@@ -79,8 +82,12 @@ bool TftDisplay::begin() {
         delay(100);
     }
 
-    // 3. Inisialisasi ST7735 controller
+    // 3. Inisialisasi Hardware SPI Bus & ST7735 controller
+    SPI.begin(TFT_SCLK_PIN, -1, TFT_MOSI_PIN, TFT_CS_PIN);
+    SPI.setFrequency(27000000); // 27 MHz Fast Hardware SPI (Super Cepat & Halus)
+
     tft.initR(INITR_BLACKTAB);
+    tft.setSPISpeed(27000000);
     tft.invertDisplay(false); // Pastikan warna jernih tidak terbalik / pudar
     delay(50);
     tft.setRotation(1); // Landscape 160 x 128
@@ -291,86 +298,7 @@ void TftDisplay::updateHomeDynamicData() {
     }
 }
 
-void TftDisplay::drawMenuScreen() {
-    drawHeader("DSP PARAMETER SETTINGS", COLOR_HEADER_BG, COLOR_YELLOW);
-
-    const uint8_t visible_count = 6;
-    if (_menuIndex < _menuScrollOffset) {
-        _menuScrollOffset = _menuIndex;
-    } else if (_menuIndex >= _menuScrollOffset + visible_count) {
-        _menuScrollOffset = _menuIndex - visible_count + 1;
-    }
-
-    DspConfig cfg = dspEngine.getConfig();
-
-    for (uint8_t row = 0; row < visible_count; row++) {
-        uint8_t item_idx = _menuScrollOffset + row;
-        if (item_idx >= MENU_ITEM_COUNT) break;
-
-        int16_t y = 17 + (row * 15);
-        bool isSelected = (item_idx == _menuIndex);
-
-        if (isSelected) {
-            tft.fillRect(0, y, 160, 14, _inEditMode ? COLOR_RED : COLOR_SEL_BG);
-            tft.setTextColor(COLOR_TEXT_BRT);
-        } else {
-            tft.fillRect(0, y, 160, 14, COLOR_BG);
-            tft.setTextColor(COLOR_TEXT_DIM);
-        }
-
-        tft.setTextSize(1);
-        tft.setCursor(4, y + 3);
-        tft.print(isSelected ? (_inEditMode ? "* " : "> ") : "  ");
-
-        switch (item_idx) {
-            case 0:
-                tft.printf("CH1 GAIN   : %+4.1f dB", cfg.ch1.gain_db);
-                break;
-            case 1:
-                tft.printf("CH2 GAIN   : %+4.1f dB", cfg.ch2.gain_db);
-                break;
-            case 2:
-                tft.printf("CH1 HPF    : %4.0f Hz", cfg.ch1.hpf.freq);
-                break;
-            case 3:
-                tft.printf("CH1 LPF    : %4.0f Hz", cfg.ch1.lpf.freq);
-                break;
-            case 4:
-                tft.printf("CH2 HPF    : %4.0f Hz", cfg.ch2.hpf.freq);
-                break;
-            case 5:
-                tft.printf("CH2 LPF    : %4.0f Hz", cfg.ch2.lpf.freq);
-                break;
-            case 6:
-                tft.printf("CH1 PHASE  : %s", cfg.ch1.polarity_inverted ? "INVERT 180" : "NORMAL");
-                break;
-            case 7:
-                tft.printf("CH2 PHASE  : %s", cfg.ch2.polarity_inverted ? "INVERT 180" : "NORMAL");
-                break;
-            case 8:
-                tft.printf("CH1 MUTE   : %s", cfg.ch1.mute ? "MUTED [ON]" : "UNMUTED");
-                break;
-            case 9:
-                tft.printf("CH2 MUTE   : %s", cfg.ch2.mute ? "MUTED [ON]" : "UNMUTED");
-                break;
-            case 10:
-                tft.printf("MASTER VOL : %+4.0f dB", cfg.master_gain_db);
-                break;
-            case 11:
-                tft.printf("ALL MUTE   : %s", cfg.mute ? "MUTED [ON]" : "UNMUTED");
-                break;
-            case 12:
-                tft.printf("LOAD PRESET: Slot %u", presetsManager.getCurrentSlot());
-                break;
-            case 13:
-                tft.printf("SAVE PRESET: [KLIK]");
-                break;
-            case 14:
-                tft.printf("< KEMBALI KE VU METER >");
-                break;
-        }
-    }
-
+void TftDisplay::drawMenuFooter() {
     tft.fillRect(0, 114, 160, 14, 0x01A3);
     tft.setTextColor(_inEditMode ? COLOR_YELLOW : COLOR_ACCENT);
     tft.setCursor(6, 117);
@@ -379,6 +307,121 @@ void TftDisplay::drawMenuScreen() {
     } else {
         tft.print("PUTAR: PILIH | TEKAN: EDIT");
     }
+}
+
+void TftDisplay::drawMenuRow(uint8_t row, bool isSelected, bool isEditMode) {
+    uint8_t item_idx = _menuScrollOffset + row;
+    if (item_idx >= MENU_ITEM_COUNT) return;
+
+    int16_t y = 17 + (row * 15);
+    DspConfig cfg = dspEngine.getConfig();
+
+    if (isSelected) {
+        tft.fillRect(0, y, 160, 14, isEditMode ? COLOR_RED : COLOR_SEL_BG);
+        tft.setTextColor(COLOR_TEXT_BRT);
+    } else {
+        tft.fillRect(0, y, 160, 14, COLOR_BG);
+        tft.setTextColor(COLOR_TEXT_DIM);
+    }
+
+    tft.setTextSize(1);
+    tft.setCursor(4, y + 3);
+    tft.print(isSelected ? (isEditMode ? "* " : "> ") : "  ");
+
+    switch (item_idx) {
+        case 0:
+            tft.printf("CH1 GAIN   : %+4.1f dB", cfg.ch1.gain_db);
+            break;
+        case 1:
+            tft.printf("CH2 GAIN   : %+4.1f dB", cfg.ch2.gain_db);
+            break;
+        case 2:
+            tft.printf("CH1 HPF    : %4.0f Hz", cfg.ch1.hpf.freq);
+            break;
+        case 3:
+            tft.printf("CH1 LPF    : %4.0f Hz", cfg.ch1.lpf.freq);
+            break;
+        case 4:
+            tft.printf("CH2 HPF    : %4.0f Hz", cfg.ch2.hpf.freq);
+            break;
+        case 5:
+            tft.printf("CH2 LPF    : %4.0f Hz", cfg.ch2.lpf.freq);
+            break;
+        case 6:
+            tft.printf("CH1 PHASE  : %s", cfg.ch1.polarity_inverted ? "INVERT 180" : "NORMAL");
+            break;
+        case 7:
+            tft.printf("CH2 PHASE  : %s", cfg.ch2.polarity_inverted ? "INVERT 180" : "NORMAL");
+            break;
+        case 8:
+            tft.printf("CH1 MUTE   : %s", cfg.ch1.mute ? "MUTED [ON]" : "UNMUTED");
+            break;
+        case 9:
+            tft.printf("CH2 MUTE   : %s", cfg.ch2.mute ? "MUTED [ON]" : "UNMUTED");
+            break;
+        case 10:
+            tft.printf("MASTER VOL : %+4.0f dB", cfg.master_gain_db);
+            break;
+        case 11:
+            tft.printf("ALL MUTE   : %s", cfg.mute ? "MUTED [ON]" : "UNMUTED");
+            break;
+        case 12:
+            tft.printf("LOAD PRESET: Slot %u", presetsManager.getCurrentSlot());
+            break;
+        case 13:
+            tft.printf("SAVE PRESET: [KLIK]");
+            break;
+        case 14:
+            tft.printf("< KEMBALI KE VU METER >");
+            break;
+    }
+}
+
+void TftDisplay::drawMenuScreen(bool forceFullRedraw) {
+    const uint8_t visible_count = 6;
+    if (_menuIndex < _menuScrollOffset) {
+        _menuScrollOffset = _menuIndex;
+    } else if (_menuIndex >= _menuScrollOffset + visible_count) {
+        _menuScrollOffset = _menuIndex - visible_count + 1;
+    }
+
+    bool needFullRedraw = forceFullRedraw || 
+                         (_prevRenderedScrollOffset != _menuScrollOffset) ||
+                         (_prevRenderedMenuIndex < 0);
+
+    if (needFullRedraw) {
+        drawHeader("DSP PARAMETER SETTINGS", COLOR_HEADER_BG, COLOR_YELLOW);
+        for (uint8_t row = 0; row < visible_count; row++) {
+            uint8_t item_idx = _menuScrollOffset + row;
+            if (item_idx >= MENU_ITEM_COUNT) {
+                int16_t y = 17 + (row * 15);
+                tft.fillRect(0, y, 160, 14, COLOR_BG);
+                continue;
+            }
+            bool isSelected = (item_idx == _menuIndex);
+            drawMenuRow(row, isSelected, _inEditMode);
+        }
+        drawMenuFooter();
+    } else {
+        // Super-fast Differential Rendering: Only redraw the row that lost selection and the row that gained it!
+        if (_prevRenderedMenuIndex != _menuIndex || _prevRenderedEditMode != _inEditMode) {
+            if (_prevRenderedMenuIndex >= _menuScrollOffset && 
+                _prevRenderedMenuIndex < _menuScrollOffset + visible_count) {
+                uint8_t old_row = _prevRenderedMenuIndex - _menuScrollOffset;
+                drawMenuRow(old_row, false, false);
+            }
+            uint8_t cur_row = _menuIndex - _menuScrollOffset;
+            drawMenuRow(cur_row, true, _inEditMode);
+
+            if (_prevRenderedEditMode != _inEditMode) {
+                drawMenuFooter();
+            }
+        }
+    }
+
+    _prevRenderedMenuIndex = _menuIndex;
+    _prevRenderedScrollOffset = _menuScrollOffset;
+    _prevRenderedEditMode = _inEditMode;
 }
 
 static float stepFrequency(float current_freq, int32_t delta) {
@@ -474,7 +517,8 @@ void TftDisplay::applyMenuEdit(int32_t delta) {
             break;
     }
 
-    drawMenuScreen();
+    uint8_t cur_row = _menuIndex - _menuScrollOffset;
+    drawMenuRow(cur_row, true, true);
 }
 
 void TftDisplay::executeMenuSelect() {
@@ -492,12 +536,12 @@ void TftDisplay::executeMenuSelect() {
         tft.setCursor(20, 117);
         tft.print("[ TERSIMPAN KE NVS! ]");
         delay(600);
-        drawMenuScreen();
+        drawMenuScreen(true);
         return;
     }
 
     _inEditMode = !_inEditMode;
-    drawMenuScreen();
+    drawMenuScreen(false);
 }
 
 void TftDisplay::handleEncoder(int32_t delta, bool clicked, bool longPressed) {
@@ -511,7 +555,7 @@ void TftDisplay::handleEncoder(int32_t delta, bool clicked, bool longPressed) {
     }
 
     if (_currentMode == SCREEN_HOME) {
-        if (clicked) {
+        if (clicked || delta != 0) {
             setScreenMode(SCREEN_MENU);
         }
         return;
@@ -523,7 +567,7 @@ void TftDisplay::handleEncoder(int32_t delta, bool clicked, bool longPressed) {
         }
         if (clicked) {
             _inEditMode = false;
-            drawMenuScreen();
+            drawMenuScreen(false);
         }
     } else {
         if (delta != 0) {
@@ -532,7 +576,7 @@ void TftDisplay::handleEncoder(int32_t delta, bool clicked, bool longPressed) {
             if (new_idx >= MENU_ITEM_COUNT) new_idx = MENU_ITEM_COUNT - 1;
             if (new_idx != _menuIndex) {
                 _menuIndex = new_idx;
-                drawMenuScreen();
+                drawMenuScreen(false);
             }
         }
         if (clicked) {

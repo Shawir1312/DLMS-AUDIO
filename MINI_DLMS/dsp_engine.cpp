@@ -155,6 +155,9 @@ void DspEngine::setSampleRate(uint32_t sample_rate) {
 void DspEngine::setConfig(const DspConfig& config) {
     portENTER_CRITICAL(&_paramMux);
     _config = config;
+    _masterGainLinear = _config.mute ? 0.0f : powf(10.0f, _config.master_gain_db / 20.0f);
+    _ch1GainLinear    = _config.ch1.mute ? 0.0f : powf(10.0f, _config.ch1.gain_db / 20.0f);
+    _ch2GainLinear    = _config.ch2.mute ? 0.0f : powf(10.0f, _config.ch2.gain_db / 20.0f);
     portEXIT_CRITICAL(&_paramMux);
 
     updateFilterCoefficients();
@@ -660,8 +663,9 @@ void DspEngine::processAudio(const int16_t* in_pcm, int16_t* out_pcm, size_t fra
             _ch1DelayWriteIdx = (_ch1DelayWriteIdx + 1) % _delayBufferSize;
         }
 
-        // 5. Gain
+        // 5. Gain & Mute
         s_ch1 = s_ch1 * ch1_gain;
+        if (_config.ch1.mute || _config.mute) s_ch1 = 0.0f;
 
         // 6. Limiter
         if (ch1_lim_on) {
@@ -727,8 +731,9 @@ void DspEngine::processAudio(const int16_t* in_pcm, int16_t* out_pcm, size_t fra
             _ch2DelayWriteIdx = (_ch2DelayWriteIdx + 1) % _delayBufferSize;
         }
 
-        // 5. Gain
+        // 5. Gain & Mute
         s_ch2 = s_ch2 * ch2_gain;
+        if (_config.ch2.mute || _config.mute) s_ch2 = 0.0f;
 
         // 6. Limiter
         if (ch2_lim_on) {
